@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # HIEScrum: Locally Hosted AI-Assisted Software Documentation & Task Generation Framework
 
 HIEScrum is an end-to-end, locally hosted web application designed to:
@@ -87,3 +88,6 @@ To finalize the sprint cycle, the application aggregates the technical documenta
 ---
 
 ## Demo Video Link
+=======
+
+>>>>>>> ffa41120b53dc0d4fb4aeffb774f95786d63fb8e
