@@ -2,7 +2,6 @@
 
 HIEScrum is an end-to-end, locally hosted web application designed to:
 - Automate technical documentation generation 
-- Reverse-engineer codebases 
 - Map business requirements directly to granular, developer-ready task tickets 
 - Generate source-code annotation/explanation with strict governance and security compliance
 
@@ -82,3 +81,9 @@ To finalize the sprint cycle, the application aggregates the technical documenta
 * It is run through local styling sheets (using print-ready compilers like FPDF2 or LaTeX) to output a static, professionally styled **PDF document** delivered directly to the dashboard.
 
 ---
+
+## Deployed Link
+
+---
+
+## Demo Video Link
