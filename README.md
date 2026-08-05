@@ -11,7 +11,7 @@ By integrating advanced local language models as core execution layers within a 
 
 ## How It Works
 
-The framework operates entirely within a single workstation's rootless containerized boundary. It ingests the raw binary multi-part stream of the `.zip` archive in fixed **1MB chunks** and pipes them directly to transient storage on disk. During decompression, it purifies functional components. Once decompressed, it constructs high-resolution AST traceability indexes, and generates context-enriched, developer-ready Jira Epics, code annotations and PDF reports. All operations from a codebase ingestion event (`ZIP_CODEBASE_UPLOAD`) to a requirements optimization query are hashed and recorded on a tamper-proof SQLite transaction ledger to guarantee absolute enterprise audit accountability.
+The framework operates entirely within a single workstation's rootless containerized boundary. It ingests the raw binary multi-part stream of the `.zip` archive in fixed **1MB chunks** and pipes them directly to temporary storage on disk. During decompression, it purifies functional components. Once decompressed, it constructs high-resolution AST traceability indexes, and generates context-enriched, developer-ready Jira Epics, code annotations and PDF reports. All operations from a codebase ingestion event (`ZIP_CODEBASE_UPLOAD`) to a requirements optimization query are hashed and recorded on a tamper-proof SQLite transaction ledger to guarantee absolute enterprise audit accountability.
 
 ```
 ┌─────────────────------─┐ 1. Structural Elimination & Syntactic Dilution   ┌─────────────────────────┐
