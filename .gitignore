@@ -1,0 +1,99 @@
+# ------------------------------------------------------------------------------
+# 1. Active Environment Secrets (CRITICAL SECURITY)
+# ------------------------------------------------------------------------------
+# Block all active local environment configurations containing live secrets
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+scrummap.env
+
+# ALWAYS allow the safe example template to be committed
+!*.env.example
+!scrummap.env.example
+
+# ------------------------------------------------------------------------------
+# 2. Local SQLite Transactional Database
+# ------------------------------------------------------------------------------
+# Block the active relational database and its Write-Ahead Log (WAL) components
+*.db
+*.db-journal
+*.db-wal
+governance.db
+governance.db-journal
+governance.db-wal
+mock_governance.db
+/workspace/data/governance.db
+
+# ------------------------------------------------------------------------------
+# 3. Codebase Ingestion & Transient Uploads (Zero-Data Retention)
+# ------------------------------------------------------------------------------
+# Block raw codebase ZIP packages and temporary extraction folders
+*.zip
+*.tar.gz
+*.tgz
+scrummap_uploads/
+tmp_uploads/
+tmp/
+/tmp/scrummap_uploads/
+
+# ------------------------------------------------------------------------------
+# 4. Backend Workspace Clutter (Python & FastAPI)
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+pyenv/
+.python-version
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# ------------------------------------------------------------------------------
+# 5. Frontend Workspace Clutter (React, Next.js & Node)
+# ------------------------------------------------------------------------------
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Production/Next.js builds
+.next/
+out/
+build/
+dist/
+
+# Debug & system logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# 6. Operating System & IDE Configs
+# ------------------------------------------------------------------------------
+# OS metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor/IDE spaces
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
