@@ -30,7 +30,7 @@ ScrumMap is a framework that prioritizes deterministic API-First execution over 
 ```
 ┌─────────────────------─┐ 1. Structural Elimination & Syntactic Dilution  ┌─────────────────────────┐
 │  User Codebase         │ ----------------------------------------------► │ Optimized Code Context  │
-│(Up to 10 GB-compressed)│         (SQLite Cryptographic Ledger)           │ (In-Memory LLM Cache)   │
+│(Up to 2.0 GB-compressed)│         (SQLite Cryptographic Ledger)           │ (In-Memory LLM Cache)   │
 └──────────────────------┘                                                 └───────────┬─-───────────┘
                                                                                        |
                                                                                        | 2. SpecMap TLR
@@ -52,7 +52,7 @@ ScrumMap is a framework that prioritizes deterministic API-First execution over 
 ```
 
 ### Step 1: Uploading and Preprocessing the Codebase (The Clutter Filter)
-When a user uploads a compressed codebase folder (supporting sizes up to 10GB) the framework enforces a strict, single-channel binary ingestion stream to prevent memory crashes. Upon receiving the archive, the FastAPI backend worker buffers the file using a non-blocking chunked stream (in fixed 1MB chunks) and pipes them directly to temporary storage on disk. It then initiates a two-stage **Context Optimization** pre-processing pipeline to manage computational costs (exhausting GPU memory) and reduce reasoning noise associated with processing every raw text token through a local LLM (semantic decay).
+When a user uploads a compressed codebase folder (supporting sizes up to 2.0 GB) the framework enforces a strict, single-channel binary ingestion stream to prevent memory crashes. Upon receiving the archive, the FastAPI backend worker buffers the file using a non-blocking chunked stream (in fixed 1MB chunks) and pipes them directly to temporary storage on disk. It then initiates a two-stage **Context Optimization** pre-processing pipeline to manage computational costs (exhausting GPU memory) and reduce reasoning noise associated with processing every raw text token through a local LLM (semantic decay).
 
 **Pre-Processing Pipeline:**
 * **Phase 1 (Structural Elimination):** Before full archive extraction, Python's zipfile module sweeps the compressed repository tree and strips out non-functional files, asset formats (images, videos, CSS, HTML layouts), third-party package folders (e.g., `node_modules`, `vendor`), and lock files. Unzip operations are skipped on-the-fly for files and directories that do not contain core business logic.
