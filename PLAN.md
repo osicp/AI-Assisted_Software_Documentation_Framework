@@ -29,24 +29,24 @@ This document establishes the step-by-step execution roadmap, system specificati
 ScrumMap is deployed as an API-first, headless, native intent-oriented system packaged inside a unified, rootless container pod namespace (`scrummap-pod`) to enforce total loopback isolation.
 
 ```
-+------------------------------------------------------------------------------------------------+
-|                                         scrummap-pod                                           |
-|                                                                                                |
-|   +---------------------------------------+        +---------------------------------------+   |
-|   |         scrummap-frontend             |        |          scrummap-backend             |   |
-|   |          (React / Next.js)            |        |             (FastAPI)                 |   |
-|   |             Port 3000                 |        |             Port 8000                 |   |
-|   +-------------------+-------------------+        +-------------------+-------------------+   |
-|                       |                                                |                       |
-|                       +------------------ Local Loopback <-------------+                       |
-|                                                |                                               |
-+------------------------------------------------|-----------------------------------------------+
-                                                 | (Rootless Volume Bindings)
-                                                 v
-                               +----------------------------------+
-                               | Host Directory: /local/path/data |
-                               | Mount flags: rw, Z, U            |
-                               +----------------------------------+
++-----------------------------------------------------------------------------+
+|                               scrummap-pod                                  |
+|                                                                             |
+|   +-----------------------------+        +-----------------------------+    |
+|   |     scrummap-frontend       |        |      scrummap-backend       |    |
+|   |     (React / Next.js)       |        |         (FastAPI)           |    |
+|   |         Port 3000           |        |         Port 8000           |    |
+|   +----------------+------------+        +--------------+--------------+    |
+|                    |                                    |                   |
+|                    +---------- Local Loopback ----------+                   |
+|                                      |                                      |
++--------------------------------------|--------------------------------------+
+                                       | (Rootless Volume Bindings)
+                                       v
+                        +----------------------------------+
+                        | Host Directory: /local/path/data |
+                        | Mount flags: rw, Z, U            |
+                        +----------------------------------+
 ```
 
 ### 2.1 Network Topology & Isolation
