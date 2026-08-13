@@ -18,6 +18,7 @@ from backend.app.ledger import get_db_connection, commit_transaction_to_ledger, 
 from backend.app.optimizer import extract_and_purify_zip
 from backend.app.parser import compile_ast_ctags_index
 from backend.app.sbert_clustering import cluster_and_align_backlog
+from backend.app.uml_generator import plantuml_encode, verify_diagram_consistency
 
 # Initialize logging framework
 setup_logging()
@@ -45,6 +46,13 @@ class ProjectCreate(BaseModel):
 class ClusterRequest(BaseModel):
     user_stories: List[str]
     n_clusters: int = 3
+
+class UMLRenderRequest(BaseModel):
+    plantuml_code: str
+
+class UMLVerifyRequest(BaseModel):
+    class_diagram: str
+    sequence_diagram: str
 
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -287,3 +295,46 @@ async def verify_ledger(
         "compromised_blocks": [audit_res["tampered_block_id"]] if audit_res["status"] == "COMPROMISED" else [],
         "verification_timestamp": datetime.utcnow().isoformat() + "Z"
     }
+
+@app.post("/api/uml/render")
+async def render_uml(
+    payload: UMLRenderRequest,
+    operator_id: str = Depends(resolve_operator_role)
+):
+    # Use triple-single quotes for docstring
+    '''
+    Encodes PlantUML text and returns the rendering server redirection URL.
+    '''
+    encoded_str = plantuml_encode(payload.plantuml_code)
+    render_url = f"http://www.plantuml.com/plantuml/png/{encoded_str}"
+    
+    commit_transaction_to_ledger(
+        operator_id=operator_id,
+        transaction_type="UML_RENDERING",
+        payload_data={"render_url": render_url}
+    )
+    
+    return {
+        "status": "SUCCESS",
+        "render_url": render_url
+    }
+
+@app.post("/api/uml/verify")
+async def verify_uml_diagrams(
+    payload: UMLVerifyRequest,
+    operator_id: str = Depends(resolve_operator_role)
+):
+    # Use triple-single quotes for docstring
+    '''
+    Audits sequence and class diagrams for method and class name consistency.
+    '''
+    verify_res = verify_diagram_consistency(payload.class_diagram, payload.sequence_diagram)
+    
+    commit_transaction_to_ledger(
+        operator_id=operator_id,
+        transaction_type="DIAGRAM_CONSISTENCY_AUDIT",
+        payload_data={"status": verify_res["status"], "compromised_blocks_count": len(verify_res["compromised_blocks"])}
+    )
+    
+    return verify_res
+
