@@ -1,0 +1,37 @@
+# =============================================================================
+# SCRUMMAP PODMAN COMPOSE SERVICE DEFINITION (podman-compose.yaml)
+# =============================================================================
+# Invoke via: podman-compose -f podman-compose.yaml --in-pod scrummap-pod up -d --build
+# --in-pod groups both services into ONE shared network namespace (matching
+# the pre-existing "scrummap-pod" design) rather than podman-compose's default
+# per-service namespaces. This is why the frontend's lib/api.ts can target
+# plain http://localhost:8000 rather than a service-name DNS hostname.
+name: scrummap
+
+services:
+  scrummap-backend:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+    image: localhost/scrummap-backend:latest
+    container_name: scrummap-backend
+    env_file:
+      - ./scrummap.env
+    environment:
+      - DATABASE_PATH=/workspace/data/governance.db
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - "${HOST_DATA_DIR:-./data}:/workspace/data:rw,Z,U"
+      - "${HOST_UPLOAD_DIR:-/tmp/scrummap_uploads}:/tmp/scrummap_uploads:rw,Z,U"
+
+  scrummap-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Containerfile
+    image: localhost/scrummap-frontend:latest
+    container_name: scrummap-frontend
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - scrummap-backend
