@@ -369,6 +369,69 @@ flowchart LR
     }
     ```
 
+#### 6. `POST /api/uml/render`
+*   **Description**: Encodes PlantUML text using standard zlib compression and maps it to PlantUML Base64 to return rendering URLs.
+*   **Request Payload**:
+    ```json
+    {
+      "plantuml_code": "@startuml\nBob -> Alice : hello\n@enduml"
+    }
+    ```
+*   **Response Payload**:
+    ```json
+    {
+      "status": "SUCCESS",
+      "render_url": "http://www.plantuml.com/plantuml/png/SoWkIImgAStDuNBAJrBGjLDmpCbCJbMmKiX8pSd9vt98pKi1IW80"
+    }
+    ```
+
+#### 7. `POST /api/uml/verify`
+*   **Description**: Audits sequence and class diagrams for lifeline name and method signature consistency.
+*   **Request Payload**:
+    ```json
+    {
+      "class_diagram": "class Order { +processOrder(orderId) }",
+      "sequence_diagram": "Client -> Order : processOrder()\nClient -> Order : invalidMethod()"
+    }
+    ```
+*   **Response Payload**:
+    ```json
+    {
+      "status": "INCONSISTENT",
+      "compromised_blocks": [
+        {
+          "type": "MISSING_METHOD",
+          "detail": "Method 'invalidMethod' called on 'Order' is not defined inside class 'Order'."
+        }
+      ],
+      "scanned_classes": 1,
+      "scanned_messages": 2
+    }
+    ```
+
+#### 8. `POST /api/project/report/pdf`
+*   **Description**: Compiles sprint backlog, unhappy paths, code symbols, and UML class relationships into a downloadable PDF report file.
+*   **Request Payload**:
+    ```json
+    {
+      "project_name": "E-Commerce Core",
+      "project_description": "Enterprise payment processing gateway",
+      "user_stories": [
+        {
+          "id": "STORY-42",
+          "role": "Librarian",
+          "action": "reserve",
+          "benefit": "optimal",
+          "story_points": 5.0,
+          "code_pointers": [{"file": "OrderService.java", "lines": "10-25", "symbols": ["process"]}],
+          "unhappy_paths": ["Given bad ID, Then error"]
+        }
+      ],
+      "class_diagram_url": "http://diagram.url"
+    }
+    ```
+*   **Response**: Binary PDF file download stream (`application/pdf`).
+
 ---
 
 ## 6. AI Component Diagram: Semantic Analysis Engine

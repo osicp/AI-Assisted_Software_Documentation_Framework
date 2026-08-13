@@ -1201,6 +1201,30 @@ for item in output:
 
 ---
 
+### Advanced Features Integration Sequence
+
+After establishing the core backend modules, integrate the advanced documentation and modeling features step-by-step:
+
+#### Step 1: UML Diagram Generation & Consistency Checking (`backend/app/uml_generator.py`)
+This engine parses AST ctags symbols, translates them into PlantUML class/sequence code, and audits diagrams to flag naming and signature mismatches.
+```python
+# (See backend/app/uml_generator.py for complete source code layout)
+```
+
+#### Step 2: Epic/Story Generation & Code Pointers (`backend/app/backlog_generator.py`)
+This engine prompts the Trussed.ai proxy API to fetch Agile epics and user stories complete with points estimation, unhappy path criteria, and line-range code pointers.
+```python
+# (See backend/app/backlog_generator.py for complete source code layout)
+```
+
+#### Step 3: PDF Document Generation (`backend/app/document_compiler.py`)
+This module aggregates sprint details, acceptance criteria, and diagrams, compiling them into a professionally formatted corporate PDF report.
+```python
+# (See backend/app/document_compiler.py for complete source code layout)
+```
+
+---
+
 ## 5. Workstation Deployment & Core Execution Scripts
 
 The following scripts automate system-wide verification, container builds, and local orchestration.
