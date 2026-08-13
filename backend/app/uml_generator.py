@@ -98,6 +98,8 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
     # 2. Parse Sequence Diagram
     # Match: participant ParticipantName or database ParticipantName, etc.
     declared_participants = set(re.findall(r'(?:participant|actor|boundary|control|entity|database)\s+(\w+)', sequence_diagram_text))
+    # Explicitly track actors to skip class validation (representing human operators)
+    actor_participants = set(re.findall(r'actor\s+(\w+)', sequence_diagram_text))
     # Match: A -> B: message
     arrows = re.findall(r'(\w+)\s*-(?:-)?(?:>|x)\s*(\w+)\s*:\s*(.*)', sequence_diagram_text)
     
@@ -118,8 +120,8 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
     
     # Audit A: Check if sequence participants are defined in Class Diagram
     for p in all_sequence_participants:
-        # Ignore standard actors (like User or Client) if they aren't class targets
-        if p.lower() in ("user", "client", "customer"):
+        # Ignore standard actors (like User or Client) or explicitly declared actors
+        if p.lower() in ("user", "client", "customer") or p in actor_participants:
             continue
         if p not in class_methods:
             compromised_blocks.append({

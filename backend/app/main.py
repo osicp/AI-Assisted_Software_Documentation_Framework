@@ -66,6 +66,7 @@ class PDFCompileRequest(BaseModel):
     project_description: Optional[str] = None
     user_stories: List[Dict[str, Any]]
     class_diagram_url: Optional[str] = None
+    project_id: Optional[str] = None
 
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -406,7 +407,8 @@ async def generate_project_pdf(
     commit_transaction_to_ledger(
         operator_id=operator_id,
         transaction_type="PDF_REPORT_COMPILATION",
-        payload_data={"project_name": payload.project_name, "stories_count": len(payload.user_stories)}
+        payload_data={"project_name": payload.project_name, "stories_count": len(payload.user_stories)},
+        project_id=payload.project_id
     )
     
     return Response(

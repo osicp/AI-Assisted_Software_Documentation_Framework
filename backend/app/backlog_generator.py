@@ -68,6 +68,27 @@ def call_llm_gateway(prompt: str) -> str:
                     return data["choices"][0]["message"]["content"]
         except Exception:
             pass
+    elif settings.LLM_PROVIDER == "openai-compatible" and settings.OPENAI_BASE_URL:
+        headers = {
+            "Authorization": f"Bearer {settings.OPENAI_API_KEY or ''}",
+            "Content-Type": "application/json"
+        }
+        url = settings.OPENAI_BASE_URL
+        if not url.endswith("/chat/completions"):
+            url = url.rstrip("/") + "/chat/completions"
+        payload = {
+            "model": settings.LOCAL_LLM_MODEL or "default",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2
+        }
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                resp = client.post(url, json=payload, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data["choices"][0]["message"]["content"]
+        except Exception:
+            pass
             
     return get_mock_llm_response(prompt)
 

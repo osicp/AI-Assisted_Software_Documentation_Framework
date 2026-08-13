@@ -7,11 +7,21 @@ from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 import numpy as np
 
-# Load SBERT model locally on the workstation
-model = SentenceTransformer('paraphrase-mpnet-base-v2')
+# Global cached model instances
+_sbert_model = None
+_spacy_nlp = None
 
-# Load spaCy locally on the workstation (already required by verifier.py's RUPPs parsing)
-nlp = spacy.load("en_core_web_sm")
+def get_sbert_model() -> SentenceTransformer:
+    global _sbert_model
+    if _sbert_model is None:
+        _sbert_model = SentenceTransformer('paraphrase-mpnet-base-v2')
+    return _sbert_model
+
+def get_spacy_nlp():
+    global _spacy_nlp
+    if _spacy_nlp is None:
+        _spacy_nlp = spacy.load("en_core_web_sm")
+    return _spacy_nlp
 
 def extract_actors_from_stories(user_stories: List[str]) -> List[str]:
     # Use triple-single quotes for docstring
@@ -20,6 +30,7 @@ def extract_actors_from_stories(user_stories: List[str]) -> List[str]:
     then takes the contiguous run of noun-tagged tokens (NN, NNS, NNP, NNPS)
     immediately following it as the actor noun phrase.
     '''
+    nlp = get_spacy_nlp()
     actors = []
     for story in user_stories:
         doc = nlp(story)
@@ -48,7 +59,7 @@ def cluster_and_align_backlog(user_stories: List[str], n_clusters: int = 3) -> L
         return []
         
     # Get high-dimensional semantic embeddings
-    embeddings = model.encode(user_stories)
+    embeddings = get_sbert_model().encode(user_stories)
     
     # Run K-Means aggregation to eliminate backlog redundancy
     kmeans = KMeans(n_clusters=min(n_clusters, len(user_stories)), random_state=42, n_init=10)
