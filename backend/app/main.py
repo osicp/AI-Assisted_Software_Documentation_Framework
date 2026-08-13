@@ -7,7 +7,7 @@ import hashlib
 import shutil
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, Depends, UploadFile, File, Form, Query, HTTPException, status
+from fastapi import FastAPI, Depends, UploadFile, File, Form, Query, HTTPException, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -20,6 +20,7 @@ from backend.app.parser import compile_ast_ctags_index
 from backend.app.sbert_clustering import cluster_and_align_backlog
 from backend.app.uml_generator import plantuml_encode, verify_diagram_consistency
 from backend.app.backlog_generator import generate_backlog_items
+from backend.app.document_compiler import compile_pdf_report
 
 # Initialize logging framework
 setup_logging()
@@ -59,6 +60,12 @@ class BacklogGenerateRequest(BaseModel):
     sprint_goal: str
     ast_symbols: List[Dict[str, Any]]
     refined_requirements: Optional[str] = None
+
+class PDFCompileRequest(BaseModel):
+    project_name: str
+    project_description: Optional[str] = None
+    user_stories: List[Dict[str, Any]]
+    class_diagram_url: Optional[str] = None
 
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -373,5 +380,40 @@ async def generate_backlog(
     )
     
     return backlog_res
+
+@app.post("/api/project/report/pdf")
+async def generate_project_pdf(
+    payload: PDFCompileRequest,
+    operator_id: str = Depends(resolve_operator_role)
+):
+    # Use triple-single quotes for docstring
+    '''
+    Compiles backlog requirements and diagrams into a PDF byte stream.
+    '''
+    try:
+        pdf_data = compile_pdf_report(
+            project_name=payload.project_name,
+            project_description=payload.project_description,
+            user_stories=payload.user_stories,
+            class_diagram_url=payload.class_diagram_url
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"PDF compiler compilation failure: {str(e)}"
+        )
+        
+    commit_transaction_to_ledger(
+        operator_id=operator_id,
+        transaction_type="PDF_REPORT_COMPILATION",
+        payload_data={"project_name": payload.project_name, "stories_count": len(payload.user_stories)}
+    )
+    
+    return Response(
+        content=pdf_data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=scrummap_{payload.project_name.lower().replace(' ', '_')}_report.pdf"}
+    )
+
 
 
