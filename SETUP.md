@@ -318,6 +318,7 @@ sentence-transformers>=2.6.0
 pypdf>=4.0.0
 jinja2>=3.1.0
 python-multipart>=0.0.9
+fpdf2>=2.8.8
 ```
 Install the python requirements and fetch the required spaCy English language model:
 ```bash
