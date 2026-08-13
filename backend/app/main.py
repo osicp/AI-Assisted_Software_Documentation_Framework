@@ -6,7 +6,7 @@ import uuid
 import hashlib
 import shutil
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, Depends, UploadFile, File, Form, Query, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,6 +19,7 @@ from backend.app.optimizer import extract_and_purify_zip
 from backend.app.parser import compile_ast_ctags_index
 from backend.app.sbert_clustering import cluster_and_align_backlog
 from backend.app.uml_generator import plantuml_encode, verify_diagram_consistency
+from backend.app.backlog_generator import generate_backlog_items
 
 # Initialize logging framework
 setup_logging()
@@ -53,6 +54,11 @@ class UMLRenderRequest(BaseModel):
 class UMLVerifyRequest(BaseModel):
     class_diagram: str
     sequence_diagram: str
+
+class BacklogGenerateRequest(BaseModel):
+    sprint_goal: str
+    ast_symbols: List[Dict[str, Any]]
+    refined_requirements: Optional[str] = None
 
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -337,4 +343,35 @@ async def verify_uml_diagrams(
     )
     
     return verify_res
+
+@app.post("/api/backlog/generate")
+async def generate_backlog(
+    payload: BacklogGenerateRequest,
+    operator_id: str = Depends(resolve_operator_role)
+):
+    # Use triple-single quotes for docstring
+    '''
+    Generates Epics and User Stories complete with acceptance criteria, unhappy paths,
+    and codebase symbol line mappings using an LLM connector.
+    '''
+    try:
+        backlog_res = generate_backlog_items(
+            sprint_goal=payload.sprint_goal,
+            ast_symbols=payload.ast_symbols,
+            refined_requirements=payload.refined_requirements
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Backlog generation failure: {str(e)}"
+        )
+        
+    commit_transaction_to_ledger(
+        operator_id=operator_id,
+        transaction_type="BACKLOG_GENERATION",
+        payload_data={"sprint_goal": payload.sprint_goal, "epics_count": len(backlog_res.get("epics", []))}
+    )
+    
+    return backlog_res
+
 
