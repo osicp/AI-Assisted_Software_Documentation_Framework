@@ -28,27 +28,27 @@ Unlike typical Retrieval-Augmented Generation (RAG) frameworks that rely on vect
 ScrumMap is a framework that prioritizes deterministic API-First execution over Probabilistic-Interface interaction. It operates entirely within a single workstation's environment where all services are isolated inside a unified rootless `Podman pod`. First, it ingests the raw binary multi-part stream of the `.zip` archive in fixed **1MB chunks** and pipes them directly to temporary storage on disk. During decompression, it purifies functional components. Once decompressed, it constructs high-resolution AST traceability indexes. To comply with **Zero-Data Retention**, immediately after static AST symbol extraction and intermediate schema caching are completed, the framework wipes the **raw codebase folders and binary files**. Then, the indexed codebase is fed to a **optimizer/verification loop** that outputs the **LLM Context Caching**, all subsequent sprint-planning interactions, sequence modeling rounds, and documentation generation events query directly against this pre-cached context. In addition, all operations from a codebase ingestion event (`ZIP_CODEBASE_UPLOAD`) to a requirements optimization query are hashed and recorded in a tamper-proof `SQLite database` transaction ledger to guarantee absolute enterprise audit accountability.
 
 ```
-┌─────────────────------─┐ 1. Structural Elimination & Syntactic Dilution  ┌─────────────────────────┐
-│  User Codebase         │ ----------------------------------------------► │ Optimized Code Context  │
-│(Up to 2.0 GB-compressed)│         (SQLite Cryptographic Ledger)           │ (In-Memory LLM Cache)   │
-└──────────────────------┘                                                 └───────────┬─-───────────┘
-                                                                                       |
-                                                                                       | 2. SpecMap TLR
-                                                                                       ▼
-┌──────────────────┐       3. SNL Verifier-Optimizer Loop                  ┌─────────────────────────┐
-│ PM Requirements  │ ----------------------------------------------------► │ Verified Requirements   │
-│ (NL / Drafts)    │                                                       │ (Structured Nat. Lang.) │
-└───────────--─────┘                                                       └───────────┬─------──────┘
-                                                                                       |
-    ┌─---------------------------------------------------------------------------------┘
-    |                                                                                      
+┌─────────────────------─┐ 1. Structural Elim. & Syntactic Dil. ┌────────────────────────┐
+│  User Codebase         │ -----------------------------------► │ Optimized Code Context │
+│(Up to 2.0GB-compressed)│    (SQLite Cryptographic Ledger)     │ (In-Memory LLM Cache)  │
+└──────────────────------┘                                      └───-────┬─----──────────┘
+                                                                         |           
+                                                                         | 2. SpecMap TLR
+                                                                         ▼
+┌──────────────────┐       3. SNL Verifier-Optimizer Loop       ┌────────────────────────┐
+│ PM Requirements  │ -----------------------------------------► │ Verified Requirements  │
+│ (NL / Drafts)    │                                            │ (Structured Nat. Lang.)│
+└───────────--─────┘                                            └───────────┬─------─────┘
+                                                                            |
+    ┌─----------------------------------------------------------------------┘
+    |                                                                          
     ├─► 4. Bidirectional Modeling & UML Consistency Checks => Automated PlantUML Diagrams
     |                                                                                      
-    ├─► 5. Reverse Engineering & Enriched Task Generation  => Jira Epics, Stories & Code Pointers
+    ├─► 5. Reverse Engineering & Enriched Task Generation  => Epics, Stories & Code Pointers
     |                                                                                      
-    ├─► 6. Deductive Software Architecture Recovery        => Target Conformance & Component Mapping
+    ├─► 6. Deductive Software Architecture Recovery        => Conformance & Component Mapping
     |                                                                                      
-    └─► 7. Annotations, Explanations & PDF Export          => Code Stubs, Explanations & PDF Report
+    └─► 7. Annotations, Explanations & PDF Export          => Code Explanations & PDF Report
 ```
 
 ### Step 1: Uploading and Preprocessing the Codebase (The Clutter Filter)
