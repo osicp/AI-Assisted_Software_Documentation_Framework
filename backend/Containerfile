@@ -1,0 +1,26 @@
+# Containerfile.backend (FastAPI Ingestion & Parsing Core)
+FROM python:3.12-slim
+
+# Install system dependencies for Universal Ctags & document compilers
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    universal-ctags \
+    xsltproc \
+    fop \
+    pandoc \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Pre-fetch NLP models at BUILD time so the running container needs no internet access
+RUN python -m spacy download en_core_web_sm
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-mpnet-base-v2')"
+
+# Copy files into a subfolder named 'backend' to preserve the 'backend.app' package hierarchy
+COPY . ./backend
+ENV PYTHONPATH=/workspace
+EXPOSE 8000
+
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
