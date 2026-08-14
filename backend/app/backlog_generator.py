@@ -147,7 +147,9 @@ def generate_backlog_items(
     llm_resp = call_llm_gateway(prompt)
     try:
         if "```" in llm_resp:
-            llm_resp = re.search(r'```(?:json)?([\s\S]*?)```', llm_resp).group(1).strip()
+            match = re.search(r'```(?:json)?([\s\S]*?)```', llm_resp)
+            if match:
+                llm_resp = match.group(1).strip()
         return json.loads(llm_resp)
     except Exception:
         return json.loads(get_mock_llm_response(prompt))

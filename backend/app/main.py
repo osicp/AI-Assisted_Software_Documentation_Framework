@@ -5,14 +5,14 @@ import os
 import uuid
 import hashlib
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, Depends, UploadFile, File, Form, Query, HTTPException, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.app.config import settings
-from backend.app.auth import resolve_operator_role
+from backend.app.auth import resolve_operator_role, check_role
 from backend.app.logger import setup_logging
 from backend.app.ledger import get_db_connection, commit_transaction_to_ledger, audit_ledger_integrity
 from backend.app.optimizer import extract_and_purify_zip
@@ -71,7 +71,7 @@ class PDFCompileRequest(BaseModel):
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
     payload: ProjectCreate,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -107,7 +107,7 @@ async def create_project(
     return {
         "project_id": project_id,
         "status": "CREATED",
-        "created_at": datetime.utcnow().isoformat() + "Z"
+        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
 
 @app.post("/api/codebase/upload", status_code=status.HTTP_201_CREATED)
@@ -115,7 +115,7 @@ async def upload_codebase(
     project_id: str = Query(..., description="Target project identifier"),
     version_tag: str = Query(..., description="Target version identifier"),
     codebase_zip: UploadFile = File(..., description="Multipart zip package"),
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -257,13 +257,14 @@ async def upload_codebase(
         "raw_size_bytes": raw_size,
         "purified_size_bytes": purified_size,
         "reduction_percentage": reduction,
-        "status": "purified_and_cached"
+        "status": "purified_and_cached",
+        "ast_symbols": ast_symbols
     }
 
 @app.post("/api/backlog/cluster")
 async def cluster_backlog(
     payload: ClusterRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SCRUM_MASTER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -290,32 +291,46 @@ async def cluster_backlog(
 
 @app.get("/api/ledger/verify")
 async def verify_ledger(
-    operator_id: str = Depends(resolve_operator_role)
+    start_id: int = Query(1, description="Start auditing from this transaction ID"),
+    chunk_size: Optional[int] = Query(None, description="Max number of transactions to scan in this batch"),
+    expected_prev_sig: Optional[str] = Query(None, description="Trusted previous signature check value"),
+    operator_id: str = Depends(check_role(["SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
-    Scans the write-ahead ledger database table to verify signature chain integrity.
+    Scans the write-ahead ledger database table to verify signature chain integrity. Supports pagination.
     '''
-    audit_res = audit_ledger_integrity()
-    
+    audit_res = audit_ledger_integrity(
+        start_id=start_id,
+        chunk_size=chunk_size,
+        expected_prev_sig=expected_prev_sig
+    )
+
     # Commit audit action to ledger
     commit_transaction_to_ledger(
         operator_id=operator_id,
         transaction_type="LEDGER_AUDIT",
-        payload_data={"status": audit_res["status"], "scanned_blocks": audit_res["scanned_blocks"]}
+        payload_data={
+            "status": audit_res["status"],
+            "scanned_blocks": audit_res["scanned_blocks"],
+            "start_id": start_id,
+            "chunk_size": chunk_size
+        }
     )
 
     return {
-        "ledger_integrity": "OK" if audit_res["status"] == "SUCCESS" else "TAMPERED",
+        "ledger_integrity": "OK" if audit_res["status"] == "SUCCESS" or audit_res["status"] == "CLEAN" else "TAMPERED",
         "scanned_blocks": audit_res["scanned_blocks"],
         "compromised_blocks": [audit_res["tampered_block_id"]] if audit_res["status"] == "COMPROMISED" else [],
-        "verification_timestamp": datetime.utcnow().isoformat() + "Z"
+        "verification_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "last_verified_id": audit_res.get("last_verified_id"),
+        "last_block_signature": audit_res.get("last_block_signature")
     }
 
 @app.post("/api/uml/render")
 async def render_uml(
     payload: UMLRenderRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -338,7 +353,7 @@ async def render_uml(
 @app.post("/api/uml/verify")
 async def verify_uml_diagrams(
     payload: UMLVerifyRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -357,7 +372,7 @@ async def verify_uml_diagrams(
 @app.post("/api/backlog/generate")
 async def generate_backlog(
     payload: BacklogGenerateRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -391,7 +406,7 @@ async def generate_backlog(
 @app.post("/api/project/report/pdf")
 async def generate_project_pdf(
     payload: PDFCompileRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SCRUM_MASTER", "SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''

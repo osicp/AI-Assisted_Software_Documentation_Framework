@@ -235,6 +235,12 @@ PRAGMA foreign_keys=ON;       -- Enforces complete referential integrity constra
 
 The ScrumMap backend exposes a RESTful API routing gateway that handles user interactions and backend tasks.
 
+### 5.0 Cross-Origin Resource Sharing (CORS) Policy
+To allow secure browser communication between the Next.js client-side application (running on port `FRONTEND_PORT`, defaulting to `3000`) and the FastAPI backend service (running on port `BACKEND_PORT`, defaulting to `8000`), the gateway configures FastAPI's `CORSMiddleware`.
+Whitelisted origins are dynamically bound on startup using values loaded from `scrummap.env`:
+* `http://localhost:${FRONTEND_PORT}`
+* `http://127.0.0.1:${FRONTEND_PORT}`
+
 ```mermaid
 flowchart LR
     Client["React UI Client"] -->|Upload ZIP| Upload["POST /api/codebase/upload"]
@@ -287,7 +293,8 @@ flowchart LR
       "raw_size_bytes": 450981200,
       "purified_size_bytes": 293137780,
       "reduction_percentage": "35%",
-      "status": "purified_and_cached"
+      "status": "purified_and_cached",
+      "ast_symbols": []
     }
     ```
 

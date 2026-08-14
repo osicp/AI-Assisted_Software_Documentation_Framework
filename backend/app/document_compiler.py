@@ -79,7 +79,7 @@ def compile_pdf_report(
                 p_lines = p.get("lines", "unknown")
                 p_syms = ", ".join(p.get("symbols", []))
                 pdf.cell(15)
-                pdf.cell(0, 5, f"- File: {p_file} (Lines: {p_lines}) [Symbols: {p_syms}]", new_x="LMARGIN", new_y="NEXT")
+                pdf.multi_cell(0, 5, f"- File: {p_file} (Lines: {p_lines}) [Symbols: {p_syms}]")
         pdf.ln(5)
         
     # 3. Diagrams Section

@@ -6,7 +6,10 @@ import zipfile
 import os
 import stat
 import shutil
+import logging
 from backend.app.config import settings
+
+logger = logging.getLogger("optimizer")
 
 # Directories and files with no functional business logic
 BLACK_LIST_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.ico', '.css', '.scss', '.html', '.svg', '.lock')
@@ -154,7 +157,9 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
                 raise PermissionError(f"Symlink entry rejected: '{member.filename}' is a symlink, not a regular file.")
 
             # Directory Traversal Guardrail
-            normalized_path = os.path.normpath(member.filename)
+            # Standardize backslashes to forward slashes for cross-platform validation safety
+            standardized_filename = member.filename.replace("\\", "/")
+            normalized_path = os.path.normpath(standardized_filename)
             if normalized_path.startswith("..") or os.path.isabs(normalized_path):
                 raise PermissionError("Traversal exploit detected: Compressed path points outside execution boundary.")
                 
@@ -165,6 +170,11 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
                 
             # Filter non-functional extensions (Structural Elimination)
             if normalized_path.endswith(BLACK_LIST_EXTENSIONS):
+                continue
+                
+            # Skip directory entries explicitly to avoid reading contents
+            if member.is_dir():
+                os.makedirs(os.path.join(extract_target_dir, normalized_path), exist_ok=True)
                 continue
                 
             # Decompress and apply Syntactic Dilution to source code files on-the-fly
@@ -183,11 +193,11 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
             else:
                 archive.extract(member, extract_target_dir)
 
-            # Restore original Unix file permissions (e.g. execution bits)
+            # Restore original Unix file permissions (e.g. execution bits) safely
             attr = member.external_attr >> 16
             if attr > 0:
                 try:
-                    os.chmod(target_path, attr)
-                except OSError:
-                    # Non-fatal: ignore permission errors on unsupported filesystems
-                    pass
+                    # Mask out SETUID, SETGID, and sticky bits, preserving only standard permissions
+                    os.chmod(target_path, attr & 0o777)
+                except OSError as e:
+                    logger.warning(f"Could not restore Unix file permissions for '{target_path}': {e}")

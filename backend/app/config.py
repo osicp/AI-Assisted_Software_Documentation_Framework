@@ -32,7 +32,7 @@ class ScrumMapSettings(BaseSettings):
     BACKEND_PORT: int = Field(default=8000, description="FastAPI Server Port")
 
     # relational database Settings
-    DATABASE_PATH: str = Field(default="/workspace/data/governance.db", description="In-process SQLite Database File")
+    DATABASE_PATH: str = Field(default="./data/governance.db", description="In-process SQLite Database File")
     
     # Ingestion & Context Optimization Guardrails
     UPLOAD_DIR: str = Field(default="/tmp/scrummap_uploads", description="Decompression storage")

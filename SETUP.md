@@ -68,8 +68,9 @@ Podman was selected because it runs **daemonless and rootless**. This mitigates 
   ```
   *Ensure rootless output is true to prevent execution privilege blocks.*
 
-### 1.4 Document Compilation Tooling (xsltproc & Apache FOP / LaTeX)
-To render downloadable PDF audits from DocBook XML v5.1 templates, install the following document compilation engines:
+### 1.4 Document Compilation Tooling (fpdf2 native compilation)
+The ScrumMap platform compiles structured Agile governance PDF reports directly using the Python-native `fpdf2` library (installed automatically via `requirements.txt`). This removes heavy external compiler toolchains (such as Java-based Apache FOP or LaTeX) from host workstation runtimes.
+If you need to compile documents from raw markdown or DocBook sources manually, you can optionally install:
 * **macOS**:
   ```bash
   brew install xsltproc fop pandoc
@@ -135,11 +136,12 @@ scrummap/
 │       ├── auth.py                 # Role-key request authentication (X-ScrumMap-Role-Key header)
 │       ├── optimizer.py            # Context Optimizer: Structural Elim. & Syntactic Dil. sweeps
 │       ├── parser.py               # AST Symbol Parser: Static analysis wrapping Universal Ctags
-│       ├── verifier.py             # Verifier-Optimizer: spaCy RUPPs parsing & POS-tagging verif.
 │       ├── sbert_clustering.py     # SBERT & K-Means story grouping logic
-│       ├── task_generator.py       # Deductive SAR & Bifurcated Forward/Reverse Ticket pipelines
+│       ├── backlog_generator.py    # Deductive SAR & Bifurcated Forward/Reverse Ticket pipelines
+│       ├── uml_generator.py        # PlantUML diagram validation and synthesis
+│       ├── document_compiler.py    # PDF report generation (fpdf2 compiler)
 │       ├── ledger.py               # Relational DB and HMAC-SHA256 cryptographic chaining
-│       └── doc_compiler.py         # DocBook XML v5.1 compiler and PDF renderer (xsltproc + FOP)
+│       └── logger.py               # Structured logger configuration setup
 │
 ├── frontend/                       # Next.js Single-Page Application (SPA) dashboard boundary
 │   ├── Containerfile               # Nginx / Next.js production build container specification

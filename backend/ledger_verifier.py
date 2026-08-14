@@ -4,6 +4,7 @@
 import sys
 import os
 import sqlite3
+import logging
 
 # Inject path adjustment to allow execution from any subdirectory scope
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -11,22 +12,24 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from backend.app.ledger import init_governance_db, commit_transaction_to_ledger, audit_ledger_integrity
 from backend.app.config import settings
 
+logger = logging.getLogger("ledger_verifier")
+
 def cmd_setup_mock():
     # Use triple-single quotes for docstring
     '''Initializes governance.db and seeds a genesis SYSTEM_BOOTSTRAP transaction.'''
     init_governance_db()
     commit_transaction_to_ledger("test_admin", "SYSTEM_BOOTSTRAP", {"status": "ONLINE"})
-    print(f"[OK] Mock ledger initialized at {settings.DATABASE_PATH} and seeded with a genesis transaction.")
+    logger.info(f"[OK] Mock ledger initialized at {settings.DATABASE_PATH} and seeded with a genesis transaction.")
 
 def cmd_verify():
     # Use triple-single quotes for docstring
     '''Runs audit_ledger_integrity and prints a pass/fail summary. Exits non-zero on tampering.'''
-    print("[*] Auditing transaction chain...")
+    logger.info("[*] Auditing transaction chain...")
     result = audit_ledger_integrity()
     if result["status"] in ("SUCCESS", "CLEAN"):
-        print(f"[Success] {result['message']}")
+        logger.info(f"[Success] {result['message']}")
     else:
-        print(f"[CRITICAL WARNING] DATABASE TAMPERING DETECTED!\n{result['message']}")
+        logger.error(f"[CRITICAL WARNING] DATABASE TAMPERING DETECTED!\n{result['message']}")
         sys.exit(1)
 
 def cmd_tamper():
@@ -37,7 +40,7 @@ def cmd_tamper():
     cursor.execute("SELECT id FROM write_ahead_ledger ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
     if row is None:
-        print("[!] No blocks to tamper with. Run 'setup-mock' first.")
+        logger.warning("[!] No blocks to tamper with. Run 'setup-mock' first.")
         conn.close()
         return
     target_id = row[0]
@@ -47,7 +50,7 @@ def cmd_tamper():
     )
     conn.commit()
     conn.close()
-    print(f"[!] Simulated tampering: rewrote payload of block #{target_id} without recomputing its signature.")
+    logger.warning(f"[!] Simulated tampering: rewrote payload of block #{target_id} without recomputing its signature.")
 
 _COMMANDS = {"setup-mock": cmd_setup_mock, "verify": cmd_verify, "tamper": cmd_tamper}
 

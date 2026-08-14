@@ -93,7 +93,7 @@ When mounting directories from the host machine to store SQLite databases or com
 ### 3.3 Setup Orchestration Commands
 Container startup is declared once in `podman-compose.yaml` (SETUP.md §5, Script 2) and invoked via a single command — the `bootstrap_workstation.sh` script (SETUP.md §5, Script 1) runs exactly this, after its own prerequisite checks and host directory setup:
 ```bash
-podman-compose --in-pod scrummap-pod up -d --build
+podman-compose -f podman-compose.yaml --in-pod scrummap-pod up -d --build
 ```
 `--in-pod` groups both services into one shared network namespace (the "scrummap-pod" model), so the frontend reaches the backend via plain `http://localhost:8000` rather than service-name DNS. Published ports, volume mounts, and the `scrummap.env` reference are all declared in the compose file itself rather than as raw `podman run` flags.
 
@@ -164,8 +164,8 @@ The following matrix organizes the physical tasks required to build, test, and d
 *   **Operational Deployment Stepper View**: Render progressive workflow indicators to display real-time extraction, indexing, and auditing updates.
 *   **Interactive UML Canvas**: Integrate Mermaid.js and PlantUML rendering hooks inside an interactive SVG viewing panel. Write heuristic-based UML consistency checkers.
 *   **Bifurcated Backlog Dashboard**: Build the Kanban, Gantt, and Git side-by-side Unified Diff panels.
-*   **DocBook compiler (`xsltproc` + Apache FOP / PDFLaTeX)**: Construct the document generation engine. Compile structural details (UML diagrams, backlog tickets, and the traceability map appendix) into a standard **DocBook XML v5.1** file.
-*   **PDF Compiler Automation**: Trigger `xsltproc` to transform the XML schema into XSL-FO formatting objects, and run it through `fop` (Apache FOP) to compile a downloadable, professionally styled PDF.
+*   **Structured PDF Compiler (`fpdf2` integration)**: Construct the document generation engine using the Python-native `fpdf2` library. This compiles sprint details (UML diagram links, clustered backlog user stories, and code traceability indices) directly into a styled PDF.
+*   **PDF Compiler Automation**: Standardize the formatting layouts and trigger programmatic streams to generate compilable reports instantly, avoiding heavy external Java Runtime Environment (JRE) or Apache FOP toolchains on the host workstation.
 
 ### Day 4: Integration Testing, Tamper Auditing & Podman Packaging
 *   **Cryptographic Ledger Audit**: Test `backend/ledger_verifier.py` to sequentially compute HMAC-SHA256 backward chains and ensure unauthorized database overrides are instantly detected.

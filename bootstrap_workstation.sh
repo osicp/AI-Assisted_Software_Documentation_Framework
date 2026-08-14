@@ -27,6 +27,8 @@ if [ ! -f "$ENV_FILE" ]; then
         echo -e "${GREEN}[*] Bootstrapping from public template '${EXAMPLE_FILE}'...${NC}"
         cp "$EXAMPLE_FILE" "$ENV_FILE"
         echo -e "${YELLOW}[!] Setup: Please open '${ENV_FILE}' and enter your live 'TRUSSED_API_KEY', as well as your custom 'ROLE_KEY_*' secrets and 'LEDGER_HMAC_KEY'.${NC}"
+        echo -e "${YELLOW}[!] After configuring, re-run 'bootstrap_workstation.sh' to continue.${NC}"
+        exit 0
     else
         echo -e "${RED}[X] CRITICAL ERROR: Environment template '${EXAMPLE_FILE}' is missing!${NC}"
         exit 1
