@@ -30,15 +30,22 @@ def compile_ast_ctags_index(purified_workspace_dir: str) -> List[Dict[str, Any]]
         purified_workspace_dir
     ]
     
+    # Ensure Homebrew path is searched on macOS host
+    env = os.environ.copy()
+    if "/opt/homebrew/bin" not in env.get("PATH", ""):
+        env["PATH"] = f"/opt/homebrew/bin:{env.get('PATH', '')}"
+        
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
         for line in result.stdout.splitlines():
             if line.strip():
                 symbol_data = json.loads(line)
+                abs_path = symbol_data.get("path")
+                rel_path = os.path.relpath(abs_path, purified_workspace_dir) if abs_path else None
                 symbols.append({
                     "name": symbol_data.get("name"),
                     "kind": symbol_data.get("kind"),
-                    "path": symbol_data.get("path"),
+                    "path": rel_path,
                     "line": symbol_data.get("line"),
                     "signature": symbol_data.get("signature"),
                     "scope": symbol_data.get("scope")
