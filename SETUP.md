@@ -135,11 +135,12 @@ scrummap/
 │       ├── auth.py                 # Role-key request authentication (X-ScrumMap-Role-Key header)
 │       ├── optimizer.py            # Context Optimizer: Structural Elim. & Syntactic Dil. sweeps
 │       ├── parser.py               # AST Symbol Parser: Static analysis wrapping Universal Ctags
-│       ├── verifier.py             # Verifier-Optimizer: spaCy RUPPs parsing & POS-tagging verif.
 │       ├── sbert_clustering.py     # SBERT & K-Means story grouping logic
-│       ├── task_generator.py       # Deductive SAR & Bifurcated Forward/Reverse Ticket pipelines
+│       ├── backlog_generator.py    # Deductive SAR & Bifurcated Forward/Reverse Ticket pipelines
+│       ├── uml_generator.py        # PlantUML diagram validation and synthesis
+│       ├── document_compiler.py    # PDF report generation (fpdf2 compiler)
 │       ├── ledger.py               # Relational DB and HMAC-SHA256 cryptographic chaining
-│       └── doc_compiler.py         # DocBook XML v5.1 compiler and PDF renderer (xsltproc + FOP)
+│       └── logger.py               # Structured logger configuration setup
 │
 ├── frontend/                       # Next.js Single-Page Application (SPA) dashboard boundary
 │   ├── Containerfile               # Nginx / Next.js production build container specification
