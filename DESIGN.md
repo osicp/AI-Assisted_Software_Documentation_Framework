@@ -245,14 +245,12 @@ Whitelisted origins are dynamically bound on startup using values loaded from `s
 flowchart LR
     Client["React UI Client"] -->|Upload ZIP| Upload["POST /api/codebase/upload"]
     Client -->|Initialize Project| Project["POST /api/projects"]
-    Client -->|Synthesize Requirements| SNL["POST /api/requirements/refine"]
     Client -->|Generate Backlog| Backlog["POST /api/backlog/generate"]
     Client -->|Perform Ledger Audit| Verify["GET /api/ledger/verify"]
     
     subgraph FastAPI["FastAPI Routing Gateway"]
         Upload
         Project
-        SNL
         Backlog
         Verify
     end
@@ -298,32 +296,7 @@ flowchart LR
     }
     ```
 
-#### 3. `POST /api/requirements/refine`
-*   **Description**: Processes natural language requirements through the Verifier-Optimizer loop.
-*   **Request Payload**:
-    ```json
-    {
-      "project_id": "proj_9e8d7c6b5a4b",
-      "raw_text": "Librarian must check if book is available, then issue it."
-    }
-    ```
-*   **Response Payload**:
-    ```json
-    {
-      "snl_statements": [
-        "If a user attempts to issue a book, then the system shall verify if the Book ID is available in the database."
-      ],
-      "verification_report": {
-        "correct_instances": 1,
-        "incorrect_instances": 0,
-        "missing_instances": 0,
-        "extra_instances": 0
-      },
-      "status": "verified_and_optimized"
-    }
-    ```
-
-#### 4. `POST /api/backlog/generate`
+#### 3. `POST /api/backlog/generate`
 *   **Description**: Group requirements by actors, calculate HIE estimates, map code pointers, and generate Jira tickets.
 *   **Request Payload**: `version_id` is required and pins which `codebase_versions` snapshot the generated `code_pointers` are computed against — omitting it would leave line-number references ambiguous if the project has multiple uploaded versions.
     ```json
@@ -364,7 +337,7 @@ flowchart LR
     }
     ```
 
-#### 5. `GET /api/ledger/verify`
+#### 4. `GET /api/ledger/verify`
 *   **Description**: Scans the write-ahead ledger database table to verify signature chain integrity.
 *   **Response Payload**:
     ```json
@@ -376,7 +349,7 @@ flowchart LR
     }
     ```
 
-#### 6. `POST /api/uml/render`
+#### 5. `POST /api/uml/render`
 *   **Description**: Encodes PlantUML text using standard zlib compression and maps it to PlantUML Base64 to return rendering URLs.
 *   **Request Payload**:
     ```json
@@ -392,7 +365,7 @@ flowchart LR
     }
     ```
 
-#### 7. `POST /api/uml/verify`
+#### 6. `POST /api/uml/verify`
 *   **Description**: Audits sequence and class diagrams for lifeline name and method signature consistency.
 *   **Request Payload**:
     ```json
@@ -416,7 +389,7 @@ flowchart LR
     }
     ```
 
-#### 8. `POST /api/project/report/pdf`
+#### 7. `POST /api/project/report/pdf`
 *   **Description**: Compiles sprint backlog, unhappy paths, code symbols, and UML class relationships into a downloadable PDF report file.
 *   **Request Payload**:
     ```json

@@ -141,12 +141,11 @@ The following matrix organizes the physical tasks required to build, test, and d
 *   **Structural Noise Purification Module**: Build the extraction script to execute **Structural Elimination**—dynamically scanning the unzipped directory tree and skipping the extraction of build, asset, and lock configurations (`node_modules`, `target`, `.git`). Combined with Syntactic Dilution (below), both stages together compress codebase disk size by **~35%**.
 *   **Syntactic Dilution Module**: Implement regex sweeps to strip comments, extraneous whitespace, and logging statements from codebase files.
 
-### Day 2: Static AST Symbol Indexing, Deductive SAR Clustering, Verifier-Optimizer Loop & Long-Context Caching Proxy
+### Day 2: Static AST Symbol Indexing, Deductive SAR Clustering & Long-Context Caching Proxy
 *   **Universal Ctags Integration**: Write the background subprocess execution script to run `universal-ctags` over the purified directory. Save class, method, struct, and file-range boundaries to a cached database-backed symbol metadata catalog.
-*   **Intermediate Architectural Abstraction Layer (Actor Clustering)**: Implement **spaCy POS-tagging heuristics** to extract actors following the narrative prefix "As a...". Use the locally executed SBERT model (`paraphrase-mpnet-base-v2`) to translate narrative user stories into high-dimensional semantic vectors and cluster them using **K-Means** to remove redundancies.
+*   **Intermediate Architectural Abstraction Layer (Actor Clustering)**: Implement **spaCy POS-tagging heuristics** inside `sbert_clustering.py` to extract actors following the narrative prefix "As a...". Use the locally executed SBERT model (`paraphrase-mpnet-base-v2`) to translate narrative user stories into high-dimensional semantic vectors and cluster them using **K-Means** to remove redundancies.
 *   **Deductive Software Architecture Recovery (SAR)**: Develop the mapping logic that maps the identified functional clusters into a standardized layered reference architecture (Presentation, Application, Domain, Technical Services).
-*   **Verifier-Optimizer (spaCy & RUPPs)**: Implement RUPPs conditional template mapping logic. Classify raw specifications against codebase APIs and database schemas to label them as *Correct, Incorrect, Missing,* or *Extra (Hallucinated)*.
-*   **Human-in-the-Loop Dialog**: Write checking logic that triggers visual frontend comments on the Scrum board if requirements miss existing schema boundaries.
+*   **Heuristic-based UML consistency checkers**: Integrate diagram consistency validators directly into `uml_generator.py` to map lifelines against class and method boundaries, catching mismatches natively.
 *   **FAU Trussed.ai proxy with Context Caching**: Configure OpenAI SDK bindings, branching on `settings.LLM_PROVIDER` so the documented offline fallback (LM Studio / local open-weight models) is actually reachable, not just described in `scrummap.env`:
     ```python
     from openai import OpenAI
