@@ -4,9 +4,6 @@ FROM python:3.12-slim
 # Install system dependencies for Universal Ctags & document compilers
 RUN apt-get update && apt-get install -y --no-install-recommends \
     universal-ctags \
-    xsltproc \
-    fop \
-    pandoc \
     git \
     && rm -rf /var/lib/apt/lists/*
 

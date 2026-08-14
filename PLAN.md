@@ -65,8 +65,11 @@ The deployment runs on rootless **Podman** to satisfy security guidelines that r
 # Containerfile.backend (FastAPI Ingestion & Parsing Core)
 FROM python:3.12-slim
 
-# Install system dependencies for Universal Ctags & PDF LaTeX compilers
-RUN apt-get update && apt-get install -y --no-install-recommends     universal-ctags     xsltproc     fop     pandoc     texlive-latex-extra     git     && rm -rf /var/lib/apt/lists/*
+# Install system dependencies for Universal Ctags
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    universal-ctags \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
 COPY requirements.txt .
