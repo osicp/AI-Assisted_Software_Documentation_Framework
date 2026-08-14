@@ -23,7 +23,7 @@ services:
       - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
     volumes:
       - "${HOST_DATA_DIR:-./data}:/workspace/data:rw,Z,U"
-      - "${HOST_UPLOAD_DIR:-/tmp/scrummap_uploads}:/tmp/scrummap_uploads:rw,Z,U"
+      - "${HOST_UPLOAD_DIR:-./tmp_uploads}:/tmp/scrummap_uploads:rw,Z,U"
 
   scrummap-frontend:
     build:

@@ -21,13 +21,14 @@ def compile_ast_ctags_index(purified_workspace_dir: str) -> List[Dict[str, Any]]
     generation is worse than a caught, explicit failure.
     '''
     symbols = []
+    abs_workspace_dir = os.path.abspath(purified_workspace_dir)
     cmd = [
         "ctags",
         "-R",                               # Recursive walk
         "--output-format=json",             # JSON streaming output format
         "--fields=+n+p+s+i",                # Output line numbers, signatures, inheritance
         "--languages=Java,Python,C++,C",     # Target languages
-        purified_workspace_dir
+        abs_workspace_dir
     ]
     
     # Ensure Homebrew path is searched on macOS host
@@ -41,7 +42,7 @@ def compile_ast_ctags_index(purified_workspace_dir: str) -> List[Dict[str, Any]]
             if line.strip():
                 symbol_data = json.loads(line)
                 abs_path = symbol_data.get("path")
-                rel_path = os.path.relpath(abs_path, purified_workspace_dir) if abs_path else None
+                rel_path = os.path.relpath(abs_path, abs_workspace_dir) if abs_path else None
                 symbols.append({
                     "name": symbol_data.get("name"),
                     "kind": symbol_data.get("kind"),

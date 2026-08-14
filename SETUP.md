@@ -182,7 +182,6 @@ scrummap/
     ├── __init__.py
     ├── conftest.py                 # Set up temp sqlite DB connections and upload dirs for tests
     ├── test_ingestion.py           # Validates 1MB streaming, Structural Elim., and Syntactic Dil.
-    ├── test_verifier.py            # Validates spaCy RUPPs parsing and Verifier-Optimizer classif.
     ├── test_ledger.py              # Validates cryptographic hash chaining and ledger_verifier
     └── test_specmap.py             # Validates SBERT clustering and M1-M4 SpecMap composition
 ```
@@ -224,7 +223,7 @@ HOST_DATA_DIR=./data
 # AS SEEN INSIDE THE CONTAINER.
 UPLOAD_DIR=/tmp/scrummap_uploads
 # HOST-side directory bind-mounted to the container's UPLOAD_DIR.
-HOST_UPLOAD_DIR=/tmp/scrummap_uploads
+HOST_UPLOAD_DIR=./tmp_uploads
 # Hard limit of 2.0 GB on incoming zipped codebase files to preserve local storage.
 MAX_ZIP_SIZE_BYTES=2147483648
 # Absolute ceiling of 50,000 files unzipped on-the-fly. Aborts above limit.
@@ -1116,7 +1115,7 @@ import numpy as np
 # Load SBERT model locally on the workstation
 model = SentenceTransformer('paraphrase-mpnet-base-v2')
 
-# Load spaCy locally on the workstation (already required by verifier.py's RUPPs parsing)
+# Load spaCy locally on the workstation (required for actor POS tag parsing)
 nlp = spacy.load("en_core_web_sm")
 
 def extract_actors_from_stories(user_stories: List[str]) -> List[str]:
@@ -1405,7 +1404,7 @@ services:
       - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
     volumes:
       - "${HOST_DATA_DIR:-./data}:/workspace/data:rw,Z,U"
-      - "${HOST_UPLOAD_DIR:-/tmp/scrummap_uploads}:/tmp/scrummap_uploads:rw,Z,U"
+      - "${HOST_UPLOAD_DIR:-./tmp_uploads}:/tmp/scrummap_uploads:rw,Z,U"
 
   scrummap-frontend:
     build:
@@ -1470,7 +1469,7 @@ Verify the API streaming and purification loops by sending a mock zip package to
 curl -X POST "http://localhost:8000/api/codebase/upload?project_id=test-project&version_tag=v1.0" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
-  -H "X-ScrumMap-Role-Key: rk_dev_change_me" \
+  -H "X-ScrumMap-Role-Key: rk_dev_demo_secret_only" \
   -F "file=@mock-codebases/mock_project.zip"
 ```
 *Verify that the response returns HTTP 200 with metadata documenting the unpurified and compressed size boundaries.*

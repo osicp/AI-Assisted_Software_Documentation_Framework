@@ -108,8 +108,8 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
     for sender, receiver, msg_label in arrows:
         discovered_participants.add(sender)
         discovered_participants.add(receiver)
-        # Parse method name (word characters before parenthesis or end of string)
-        method_match = re.match(r'^\s*(\w+)\s*(?:\(.*\))?', msg_label)
+        # Parse method name (word characters strictly followed by an open parenthesis)
+        method_match = re.match(r'^\s*(\w+)\s*\(', msg_label)
         method_name = method_match.group(1) if method_match else None
         messages.append((sender, receiver, method_name))
         
