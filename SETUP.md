@@ -1469,7 +1469,7 @@ Verify the API streaming and purification loops by sending a mock zip package to
 curl -X POST "http://localhost:8000/api/codebase/upload?project_id=test-project&version_tag=v1.0" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
-  -H "X-ScrumMap-Role-Key: rk_dev_change_me" \
+  -H "X-ScrumMap-Role-Key: rk_dev_demo_secret_only" \
   -F "file=@mock-codebases/mock_project.zip"
 ```
 *Verify that the response returns HTTP 200 with metadata documenting the unpurified and compressed size boundaries.*
