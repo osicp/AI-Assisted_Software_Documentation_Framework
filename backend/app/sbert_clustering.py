@@ -62,7 +62,8 @@ def cluster_and_align_backlog(user_stories: List[str], n_clusters: int = 3) -> L
     embeddings = get_sbert_model().encode(user_stories)
     
     # Run K-Means aggregation to eliminate backlog redundancy
-    kmeans = KMeans(n_clusters=min(n_clusters, len(user_stories)), random_state=42, n_init=10)
+    k = max(1, min(n_clusters, len(user_stories)))
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
     cluster_labels = kmeans.fit_predict(embeddings)
     
     actors = extract_actors_from_stories(user_stories)
