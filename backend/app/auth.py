@@ -1,7 +1,7 @@
 # =============================================================================
 # SCRUMMAP ROLE-KEY AUTHENTICATION GATEWAY (auth.py)
 # =============================================================================
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, status, Depends
 from backend.app.config import settings
 
 def resolve_operator_role(x_scrummap_role_key: str = Header(default=None)) -> str:
@@ -25,3 +25,17 @@ def resolve_operator_role(x_scrummap_role_key: str = Header(default=None)) -> st
             detail="Invalid or missing X-ScrumMap-Role-Key header."
         )
     return role
+
+def check_role(allowed_roles: list[str]):
+    # Use triple-single quotes for docstring
+    '''
+    FastAPI dependency factory to enforce endpoint-level RBAC checks.
+    '''
+    def dependency(role: str = Depends(resolve_operator_role)) -> str:
+        if role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{role}' is not authorized to access this endpoint."
+            )
+        return role
+    return dependency

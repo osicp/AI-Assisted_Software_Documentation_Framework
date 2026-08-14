@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.app.config import settings
-from backend.app.auth import resolve_operator_role
+from backend.app.auth import resolve_operator_role, check_role
 from backend.app.logger import setup_logging
 from backend.app.ledger import get_db_connection, commit_transaction_to_ledger, audit_ledger_integrity
 from backend.app.optimizer import extract_and_purify_zip
@@ -71,7 +71,7 @@ class PDFCompileRequest(BaseModel):
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
     payload: ProjectCreate,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -115,7 +115,7 @@ async def upload_codebase(
     project_id: str = Query(..., description="Target project identifier"),
     version_tag: str = Query(..., description="Target version identifier"),
     codebase_zip: UploadFile = File(..., description="Multipart zip package"),
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -263,7 +263,7 @@ async def upload_codebase(
 @app.post("/api/backlog/cluster")
 async def cluster_backlog(
     payload: ClusterRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SCRUM_MASTER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -290,7 +290,7 @@ async def cluster_backlog(
 
 @app.get("/api/ledger/verify")
 async def verify_ledger(
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -315,7 +315,7 @@ async def verify_ledger(
 @app.post("/api/uml/render")
 async def render_uml(
     payload: UMLRenderRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -338,7 +338,7 @@ async def render_uml(
 @app.post("/api/uml/verify")
 async def verify_uml_diagrams(
     payload: UMLVerifyRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -357,7 +357,7 @@ async def verify_uml_diagrams(
 @app.post("/api/backlog/generate")
 async def generate_backlog(
     payload: BacklogGenerateRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
@@ -391,7 +391,7 @@ async def generate_backlog(
 @app.post("/api/project/report/pdf")
 async def generate_project_pdf(
     payload: PDFCompileRequest,
-    operator_id: str = Depends(resolve_operator_role)
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SCRUM_MASTER", "SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
