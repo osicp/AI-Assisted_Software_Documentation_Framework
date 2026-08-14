@@ -96,10 +96,10 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
                 class_methods[class_name].add(m)
 
     # 2. Parse Sequence Diagram
-    # Match: participant ParticipantName or database ParticipantName, etc.
-    declared_participants = set(re.findall(r'(?:participant|actor|boundary|control|entity|database)\s+(\w+)', sequence_diagram_text))
+    # Match: participant ParticipantName or database ParticipantName, etc. (supporting optional "Name" as Alias quotes)
+    declared_participants = set(re.findall(r"(?:participant|actor|boundary|control|entity|database)\s+(?:(?:(?:\"[^\"]+\"|'[^']+')\s+as\s+)?(\w+))", sequence_diagram_text))
     # Explicitly track actors to skip class validation (representing human operators)
-    actor_participants = set(re.findall(r'actor\s+(\w+)', sequence_diagram_text))
+    actor_participants = set(re.findall(r"actor\s+(?:(?:(?:\"[^\"]+\"|'[^']+')\s+as\s+)?(\w+))", sequence_diagram_text))
     # Match: A -> B: message
     arrows = re.findall(r'(\w+)\s*-(?:-)?(?:>|x)\s*(\w+)\s*:\s*(.*)', sequence_diagram_text)
     
