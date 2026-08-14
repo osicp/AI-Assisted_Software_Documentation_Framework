@@ -68,8 +68,9 @@ Podman was selected because it runs **daemonless and rootless**. This mitigates 
   ```
   *Ensure rootless output is true to prevent execution privilege blocks.*
 
-### 1.4 Document Compilation Tooling (xsltproc & Apache FOP / LaTeX)
-To render downloadable PDF audits from DocBook XML v5.1 templates, install the following document compilation engines:
+### 1.4 Document Compilation Tooling (fpdf2 native compilation)
+The ScrumMap platform compiles structured Agile governance PDF reports directly using the Python-native `fpdf2` library (installed automatically via `requirements.txt`). This removes heavy external compiler toolchains (such as Java-based Apache FOP or LaTeX) from host workstation runtimes.
+If you need to compile documents from raw markdown or DocBook sources manually, you can optionally install:
 * **macOS**:
   ```bash
   brew install xsltproc fop pandoc
