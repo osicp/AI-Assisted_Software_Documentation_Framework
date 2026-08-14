@@ -158,7 +158,7 @@ The following matrix organizes the physical tasks required to build, test, and d
     ```
     Register AST symbol maps and raw requirements into the Google Gemini 2.5 Pro Context Cache once to achieve **79% token budget savings** across iterative developer queries.
 
-### Day 3: Front-End Next.js / React Stepper Dashboard, DocBook XML Compiling & PDF Document Compilation
+### Day 3: Front-End Next.js / React Stepper Dashboard & PDF Document Compilation
 *   **Single-Page React JS Interface**: Build Next.js visual layouts incorporating sidebar routing.
 *   **Operational Deployment Stepper View**: Render progressive workflow indicators to display real-time extraction, indexing, and auditing updates.
 *   **Interactive UML Canvas**: Integrate Mermaid.js and PlantUML rendering hooks inside an interactive SVG viewing panel. Write heuristic-based UML consistency checkers.
