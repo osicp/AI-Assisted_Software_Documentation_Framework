@@ -93,7 +93,7 @@ When mounting directories from the host machine to store SQLite databases or com
 ### 3.3 Setup Orchestration Commands
 Container startup is declared once in `podman-compose.yaml` (SETUP.md §5, Script 2) and invoked via a single command — the `bootstrap_workstation.sh` script (SETUP.md §5, Script 1) runs exactly this, after its own prerequisite checks and host directory setup:
 ```bash
-podman-compose --in-pod scrummap-pod up -d --build
+podman-compose -f podman-compose.yaml --in-pod scrummap-pod up -d --build
 ```
 `--in-pod` groups both services into one shared network namespace (the "scrummap-pod" model), so the frontend reaches the backend via plain `http://localhost:8000` rather than service-name DNS. Published ports, volume mounts, and the `scrummap.env` reference are all declared in the compose file itself rather than as raw `podman run` flags.
 
