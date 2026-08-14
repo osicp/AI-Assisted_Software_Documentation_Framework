@@ -157,7 +157,9 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
                 raise PermissionError(f"Symlink entry rejected: '{member.filename}' is a symlink, not a regular file.")
 
             # Directory Traversal Guardrail
-            normalized_path = os.path.normpath(member.filename)
+            # Standardize backslashes to forward slashes for cross-platform validation safety
+            standardized_filename = member.filename.replace("\\", "/")
+            normalized_path = os.path.normpath(standardized_filename)
             if normalized_path.startswith("..") or os.path.isabs(normalized_path):
                 raise PermissionError("Traversal exploit detected: Compressed path points outside execution boundary.")
                 
