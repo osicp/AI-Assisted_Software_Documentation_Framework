@@ -6,7 +6,7 @@ import sqlite3
 import json
 import hashlib
 import hmac
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from backend.app.config import settings
 
@@ -133,7 +133,7 @@ def commit_transaction_to_ledger(
         # Calculate signature chain mapping: Hn = HMAC-SHA256(LEDGER_HMAC_KEY, H_n-1 || ... || Payload_Hash)
         # Keyed with a secret outside governance.db so a tampered row can't be
         # "fixed up" by recomputing the chain forward without the key.
-        timestamp_str = datetime.utcnow().isoformat() + "Z"
+        timestamp_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         project_id_str = project_id or ""
         chain_input = f"{prev_signature}||{timestamp_str}||{project_id_str}||{operator_id}||{transaction_type}||{payload_hash}"
         current_signature = hmac.new(

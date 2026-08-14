@@ -5,7 +5,7 @@ import os
 import uuid
 import hashlib
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, Depends, UploadFile, File, Form, Query, HTTPException, status, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -107,7 +107,7 @@ async def create_project(
     return {
         "project_id": project_id,
         "status": "CREATED",
-        "created_at": datetime.utcnow().isoformat() + "Z"
+        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
 
 @app.post("/api/codebase/upload", status_code=status.HTTP_201_CREATED)
@@ -322,7 +322,7 @@ async def verify_ledger(
         "ledger_integrity": "OK" if audit_res["status"] == "SUCCESS" or audit_res["status"] == "CLEAN" else "TAMPERED",
         "scanned_blocks": audit_res["scanned_blocks"],
         "compromised_blocks": [audit_res["tampered_block_id"]] if audit_res["status"] == "COMPROMISED" else [],
-        "verification_timestamp": datetime.utcnow().isoformat() + "Z",
+        "verification_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "last_verified_id": audit_res.get("last_verified_id"),
         "last_block_signature": audit_res.get("last_block_signature")
     }
