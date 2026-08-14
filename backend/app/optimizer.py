@@ -6,7 +6,10 @@ import zipfile
 import os
 import stat
 import shutil
+import logging
 from backend.app.config import settings
+
+logger = logging.getLogger("optimizer")
 
 # Directories and files with no functional business logic
 BLACK_LIST_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.ico', '.css', '.scss', '.html', '.svg', '.lock')
@@ -194,6 +197,5 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
                 try:
                     # Mask out SETUID, SETGID, and sticky bits, preserving only standard permissions
                     os.chmod(target_path, attr & 0o777)
-                except OSError:
-                    # Non-fatal: ignore permission errors on unsupported filesystems
-                    pass
+                except OSError as e:
+                    logger.warning(f"Could not restore Unix file permissions for '{target_path}': {e}")
