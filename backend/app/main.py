@@ -257,7 +257,8 @@ async def upload_codebase(
         "raw_size_bytes": raw_size,
         "purified_size_bytes": purified_size,
         "reduction_percentage": reduction,
-        "status": "purified_and_cached"
+        "status": "purified_and_cached",
+        "ast_symbols": ast_symbols
     }
 
 @app.post("/api/backlog/cluster")

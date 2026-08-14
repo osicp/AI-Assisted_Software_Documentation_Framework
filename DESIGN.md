@@ -293,7 +293,8 @@ flowchart LR
       "raw_size_bytes": 450981200,
       "purified_size_bytes": 293137780,
       "reduction_percentage": "35%",
-      "status": "purified_and_cached"
+      "status": "purified_and_cached",
+      "ast_symbols": []
     }
     ```
 
