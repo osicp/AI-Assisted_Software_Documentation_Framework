@@ -188,11 +188,12 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
             else:
                 archive.extract(member, extract_target_dir)
 
-            # Restore original Unix file permissions (e.g. execution bits)
+            # Restore original Unix file permissions (e.g. execution bits) safely
             attr = member.external_attr >> 16
             if attr > 0:
                 try:
-                    os.chmod(target_path, attr)
+                    # Mask out SETUID, SETGID, and sticky bits, preserving only standard permissions
+                    os.chmod(target_path, attr & 0o777)
                 except OSError:
                     # Non-fatal: ignore permission errors on unsupported filesystems
                     pass
