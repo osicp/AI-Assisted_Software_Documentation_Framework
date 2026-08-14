@@ -167,6 +167,11 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
             if normalized_path.endswith(BLACK_LIST_EXTENSIONS):
                 continue
                 
+            # Skip directory entries explicitly to avoid reading contents
+            if member.is_dir():
+                os.makedirs(os.path.join(extract_target_dir, normalized_path), exist_ok=True)
+                continue
+                
             # Decompress and apply Syntactic Dilution to source code files on-the-fly
             target_path = os.path.join(extract_target_dir, normalized_path)
             os.makedirs(os.path.dirname(target_path), exist_ok=True)
