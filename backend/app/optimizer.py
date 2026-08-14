@@ -64,7 +64,7 @@ def dilute_syntactic_structure(file_content: str, file_ext: str) -> str:
             i += 1
             
         file_content = "".join(out)
-        file_content = re.sub(r'(System\.out\.print|console\.log|printf)\(.*?\);', '', file_content)
+        file_content = re.sub(r'(System\.out\.print|console\.log|printf)\([\s\S]*?\);', '', file_content)
         
     elif file_ext == '.py':
         out = []
