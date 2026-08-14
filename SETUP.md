@@ -223,7 +223,7 @@ HOST_DATA_DIR=./data
 # AS SEEN INSIDE THE CONTAINER.
 UPLOAD_DIR=/tmp/scrummap_uploads
 # HOST-side directory bind-mounted to the container's UPLOAD_DIR.
-HOST_UPLOAD_DIR=/tmp/scrummap_uploads
+HOST_UPLOAD_DIR=./tmp_uploads
 # Hard limit of 2.0 GB on incoming zipped codebase files to preserve local storage.
 MAX_ZIP_SIZE_BYTES=2147483648
 # Absolute ceiling of 50,000 files unzipped on-the-fly. Aborts above limit.
