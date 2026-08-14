@@ -156,26 +156,52 @@ def commit_transaction_to_ledger(
 
     return current_signature
 
-def audit_ledger_integrity() -> Dict[str, Any]:
+def audit_ledger_integrity(
+    start_id: int = 1,
+    chunk_size: Optional[int] = None,
+    expected_prev_sig: Optional[str] = None
+) -> Dict[str, Any]:
     # Use triple-single quotes for docstring
     '''
-    Sanity checks and audits the complete signature database table from the initial record to the present block.
+    Sanity checks and audits the signature database table. Supports pagination and
+    checkpointing via optional start_id, chunk_size, and expected_prev_sig parameters.
     '''
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    cursor.execute("SELECT id, project_id, timestamp, operator_id, transaction_type, payload, payload_hash, block_signature, prev_block_signature FROM write_ahead_ledger ORDER BY id ASC")
+
+    # If start_id > 1 and no expected_prev_sig is provided, fetch it from block start_id - 1
+    if start_id > 1 and expected_prev_sig is None:
+        cursor.execute("SELECT block_signature FROM write_ahead_ledger WHERE id = ?", (start_id - 1,))
+        row = cursor.fetchone()
+        if row is None:
+            conn.close()
+            return {
+                "status": "ERROR",
+                "message": f"Checkpoint block #{start_id - 1} not found to establish chain validation prefix."
+            }
+        calculated_prev_sig = row["block_signature"]
+    elif expected_prev_sig is not None:
+        calculated_prev_sig = expected_prev_sig
+    else:
+        calculated_prev_sig = "GENESIS_BLOCK_ZERO_0000000000000000000000000000000000000000000"
+
+    query = "SELECT id, project_id, timestamp, operator_id, transaction_type, payload, payload_hash, block_signature, prev_block_signature FROM write_ahead_ledger WHERE id >= ? ORDER BY id ASC"
+    params = [start_id]
+    if chunk_size is not None and chunk_size > 0:
+        query += " LIMIT ?"
+        params.append(chunk_size)
+
+    cursor.execute(query, params)
     blocks = cursor.fetchall()
-    
+
     if not blocks:
-        return {"status": "CLEAN", "message": "Database write-ahead ledger is empty. Audit complete.", "scanned_blocks": 0}
-        
-    calculated_prev_sig = "GENESIS_BLOCK_ZERO_0000000000000000000000000000000000000000000"
-    
+        conn.close()
+        return {"status": "CLEAN", "message": "No transaction blocks found in the audited range.", "scanned_blocks": 0}
+
     for block in blocks:
         b_id = block["id"]
         p_hash = hashlib.sha256(block["payload"].encode("utf-8")).hexdigest()
-        
+
         # Verify that row-level JSON content matches original hash
         if p_hash != block["payload_hash"]:
             conn.close()
@@ -184,7 +210,7 @@ def audit_ledger_integrity() -> Dict[str, Any]:
                 "message": f"CRITICAL Error: Row-level payload has been tampered in Block #{b_id}.",
                 "tampered_block_id": b_id
             }
-            
+
         # Verify that the declared previous signature link matches calculated values
         if block["prev_block_signature"] != calculated_prev_sig:
             conn.close()
@@ -193,7 +219,7 @@ def audit_ledger_integrity() -> Dict[str, Any]:
                 "message": f"CRITICAL Error: Backward signature link broken at Block #{b_id}.",
                 "tampered_block_id": b_id
             }
-            
+
         # Re-verify the current hash chain computation using the same HMAC key
         project_id_str = block['project_id'] or ""
         chain_input = f"{calculated_prev_sig}||{block['timestamp']}||{project_id_str}||{block['operator_id']}||{block['transaction_type']}||{p_hash}"
@@ -208,13 +234,15 @@ def audit_ledger_integrity() -> Dict[str, Any]:
                 "message": f"CRITICAL Error: Signature signature mismatch at Block #{b_id}.",
                 "tampered_block_id": b_id
             }
-            
+
         # Move up the chain (updating the target previous register)
         calculated_prev_sig = block["block_signature"]
-        
+
     conn.close()
     return {
         "status": "SUCCESS",
         "message": f"Ledger integrity verified. {len(blocks)} transaction blocks scanned. Chain is solid.",
-        "scanned_blocks": len(blocks)
+        "scanned_blocks": len(blocks),
+        "last_verified_id": blocks[-1]["id"],
+        "last_block_signature": calculated_prev_sig
     }

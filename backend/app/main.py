@@ -290,26 +290,40 @@ async def cluster_backlog(
 
 @app.get("/api/ledger/verify")
 async def verify_ledger(
+    start_id: int = Query(1, description="Start auditing from this transaction ID"),
+    chunk_size: Optional[int] = Query(None, description="Max number of transactions to scan in this batch"),
+    expected_prev_sig: Optional[str] = Query(None, description="Trusted previous signature check value"),
     operator_id: str = Depends(check_role(["SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
 ):
     # Use triple-single quotes for docstring
     '''
-    Scans the write-ahead ledger database table to verify signature chain integrity.
+    Scans the write-ahead ledger database table to verify signature chain integrity. Supports pagination.
     '''
-    audit_res = audit_ledger_integrity()
-    
+    audit_res = audit_ledger_integrity(
+        start_id=start_id,
+        chunk_size=chunk_size,
+        expected_prev_sig=expected_prev_sig
+    )
+
     # Commit audit action to ledger
     commit_transaction_to_ledger(
         operator_id=operator_id,
         transaction_type="LEDGER_AUDIT",
-        payload_data={"status": audit_res["status"], "scanned_blocks": audit_res["scanned_blocks"]}
+        payload_data={
+            "status": audit_res["status"],
+            "scanned_blocks": audit_res["scanned_blocks"],
+            "start_id": start_id,
+            "chunk_size": chunk_size
+        }
     )
 
     return {
-        "ledger_integrity": "OK" if audit_res["status"] == "SUCCESS" else "TAMPERED",
+        "ledger_integrity": "OK" if audit_res["status"] == "SUCCESS" or audit_res["status"] == "CLEAN" else "TAMPERED",
         "scanned_blocks": audit_res["scanned_blocks"],
         "compromised_blocks": [audit_res["tampered_block_id"]] if audit_res["status"] == "COMPROMISED" else [],
-        "verification_timestamp": datetime.utcnow().isoformat() + "Z"
+        "verification_timestamp": datetime.utcnow().isoformat() + "Z",
+        "last_verified_id": audit_res.get("last_verified_id"),
+        "last_block_signature": audit_res.get("last_block_signature")
     }
 
 @app.post("/api/uml/render")
