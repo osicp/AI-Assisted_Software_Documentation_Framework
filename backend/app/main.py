@@ -240,8 +240,10 @@ async def upload_codebase(
     # 6. Apply Zero-Data Retention (ZDR) policy: delete physical files if configured
     if settings.ZDR_COMPLIANCE:
         shutil.rmtree(extract_target_dir, ignore_errors=True)
-        if os.path.exists(temp_zip_path):
-            os.remove(temp_zip_path)
+    
+    # Always delete the transient raw uploaded ZIP file to avoid disk space leaks
+    if os.path.exists(temp_zip_path):
+        os.remove(temp_zip_path)
 
     # Compute compression reduction
     reduction = "0%"
@@ -368,18 +370,22 @@ async def generate_backlog(
             ast_symbols=payload.ast_symbols,
             refined_requirements=payload.refined_requirements
         )
+        commit_transaction_to_ledger(
+            operator_id=operator_id,
+            transaction_type="BACKLOG_GENERATION",
+            payload_data={"sprint_goal": payload.sprint_goal, "epics_count": len(backlog_res.get("epics", [])), "status": "SUCCESS"}
+        )
     except Exception as e:
+        commit_transaction_to_ledger(
+            operator_id=operator_id,
+            transaction_type="BACKLOG_GENERATION",
+            payload_data={"sprint_goal": payload.sprint_goal, "status": "FAILED", "error": str(e)}
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Backlog generation failure: {str(e)}"
         )
         
-    commit_transaction_to_ledger(
-        operator_id=operator_id,
-        transaction_type="BACKLOG_GENERATION",
-        payload_data={"sprint_goal": payload.sprint_goal, "epics_count": len(backlog_res.get("epics", []))}
-    )
-    
     return backlog_res
 
 @app.post("/api/project/report/pdf")
@@ -398,19 +404,28 @@ async def generate_project_pdf(
             user_stories=payload.user_stories,
             class_diagram_url=payload.class_diagram_url
         )
+        commit_transaction_to_ledger(
+            operator_id=operator_id,
+            transaction_type="PDF_REPORT_COMPILATION",
+            payload_data={"project_name": payload.project_name, "stories_count": len(payload.user_stories), "status": "SUCCESS"},
+            project_id=payload.project_id
+        )
     except Exception as e:
+        # Note: If this fails due to database foreign keys, it will propagate naturally
+        try:
+            commit_transaction_to_ledger(
+                operator_id=operator_id,
+                transaction_type="PDF_REPORT_COMPILATION",
+                payload_data={"project_name": payload.project_name, "status": "FAILED", "error": str(e)},
+                project_id=payload.project_id
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"PDF compiler compilation failure: {str(e)}"
         )
         
-    commit_transaction_to_ledger(
-        operator_id=operator_id,
-        transaction_type="PDF_REPORT_COMPILATION",
-        payload_data={"project_name": payload.project_name, "stories_count": len(payload.user_stories)},
-        project_id=payload.project_id
-    )
-    
     return Response(
         content=pdf_data,
         media_type="application/pdf",

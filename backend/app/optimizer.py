@@ -16,21 +16,101 @@ def dilute_syntactic_structure(file_content: str, file_ext: str) -> str:
     # Use triple-single quotes for docstring
     '''
     Syntactic Dilution: Strips multi-line blocks, comments, and empty logs
-    to shrink the token context window footprint.
+    to shrink the token context window footprint while respecting string literals.
     '''
     if file_ext in ('.java', '.js', '.ts', '.cpp', '.h'):
-        # Strip multi-line comments
-        file_content = re.sub(r'/\*.*?\*/', '', file_content, flags=re.DOTALL)
-        # Strip single-line comments
-        file_content = re.sub(r'//.*$', '', file_content, flags=re.MULTILINE)
-        # Strip logging traces (e.g. system.out.println, console.log)
+        out = []
+        i = 0
+        n = len(file_content)
+        in_string = None
+        escaped = False
+        while i < n:
+            char = file_content[i]
+            
+            if in_string:
+                out.append(char)
+                if escaped:
+                    escaped = False
+                elif char == '\\':
+                    escaped = True
+                elif char == in_string:
+                    in_string = None
+                i += 1
+                continue
+                
+            if char in ('"', "'", '`'):
+                in_string = char
+                out.append(char)
+                i += 1
+                continue
+                
+            if i + 1 < n and file_content[i:i+2] == '//':
+                i += 2
+                while i < n and file_content[i] not in ('\n', '\r'):
+                    i += 1
+                continue
+                
+            if i + 1 < n and file_content[i:i+2] == '/*':
+                i += 2
+                while i + 1 < n and file_content[i:i+2] != '*/':
+                    i += 1
+                i += 2
+                continue
+                
+            out.append(char)
+            i += 1
+            
+        file_content = "".join(out)
         file_content = re.sub(r'(System\.out\.print|console\.log|printf)\(.*?\);', '', file_content)
+        
     elif file_ext == '.py':
-        # Strip triple-quote docstrings
-        file_content = re.sub(r'"""(.*?)"""', '', file_content, flags=re.DOTALL)
-        file_content = re.sub(r"'''(.*?)'''", '', file_content, flags=re.DOTALL)
-        # Strip single-line comments
-        file_content = re.sub(r'#.*$', '', file_content, flags=re.MULTILINE)
+        out = []
+        i = 0
+        n = len(file_content)
+        in_string = None
+        escaped = False
+        while i < n:
+            char = file_content[i]
+            
+            if in_string:
+                out.append(char)
+                if escaped:
+                    escaped = False
+                elif char == '\\':
+                    escaped = True
+                else:
+                    if in_string in ('"""', "'''"):
+                        if i + 2 < n and file_content[i:i+3] == in_string:
+                            out.append(file_content[i+1:i+3])
+                            in_string = None
+                            i += 3
+                            continue
+                    elif char == in_string:
+                        in_string = None
+                i += 1
+                continue
+                
+            if i + 2 < n and file_content[i:i+3] in ('"""', "'''"):
+                in_string = file_content[i:i+3]
+                out.append(in_string)
+                i += 3
+                continue
+                
+            if char in ('"', "'"):
+                in_string = char
+                out.append(char)
+                i += 1
+                continue
+                
+            if char == '#':
+                while i < n and file_content[i] not in ('\n', '\r'):
+                    i += 1
+                continue
+                
+            out.append(char)
+            i += 1
+            
+        file_content = "".join(out)
         
     # Standardize whitespace and strip trailing blank spaces
     file_content = os.linesep.join([line.rstrip() for line in file_content.splitlines() if line.strip()])
