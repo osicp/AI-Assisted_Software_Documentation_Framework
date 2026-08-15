@@ -29,6 +29,8 @@ def resolve_operator_role(x_scrummap_role_key: str = Header(default=None)) -> st
     # Secure constant-time comparison to prevent timing attacks
     resolved_role = None
     for configured_key, role_name in role_key_map.items():
+        if not configured_key or "your_" in configured_key.lower() or "key_here" in configured_key.lower():
+            continue
         if hmac.compare_digest(configured_key, x_scrummap_role_key):
             resolved_role = role_name
 
