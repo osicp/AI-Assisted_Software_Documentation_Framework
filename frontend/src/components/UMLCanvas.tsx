@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, CheckCircle, AlertTriangle, Play, RefreshCw, ZoomIn, ZoomOut, Maximize2, Layers, GitCommit } from 'lucide-react';
+import { Layout, CheckCircle, AlertTriangle, Play, RefreshCw, ZoomIn, ZoomOut, Maximize2, Layers, GitCommit, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { ASTSymbol } from '../lib/types';
 

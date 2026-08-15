@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Code2, Folder, FileCode, Download, CheckCircle, FileText, ChevronRight, ChevronDown } from 'lucide-react';
+import { Code2, Folder, FileCode, Download, CheckCircle, FileText, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { ASTSymbol, UserStory } from '../lib/types';
 
 interface CodeViewerProps {
