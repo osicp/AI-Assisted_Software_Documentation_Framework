@@ -326,7 +326,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'uml' && (
-            <UMLCanvas />
+            <UMLCanvas astSymbols={astSymbols} />
           )}
 
           {activeTab === 'backlog' && (
