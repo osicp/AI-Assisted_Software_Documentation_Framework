@@ -89,8 +89,22 @@ def compile_pdf_report(
         pdf.cell(0, 10, "System Architecture Diagrams", new_x="LMARGIN", new_y="NEXT")
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(5)
-        pdf.set_font("helvetica", "", 10)
-        pdf.cell(0, 8, f"UML Diagram URL: {class_diagram_url}", new_x="LMARGIN", new_y="NEXT")
+        
+        import httpx
+        import io
+        img_embedded = False
+        try:
+            resp = httpx.get(class_diagram_url, timeout=10.0)
+            if resp.status_code == 200:
+                img_data = io.BytesIO(resp.content)
+                pdf.image(img_data, w=180)
+                img_embedded = True
+        except Exception:
+            pass
+            
+        if not img_embedded:
+            pdf.set_font("helvetica", "I", 10)
+            pdf.multi_cell(0, 6, f"UML Diagram URL: {class_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)")
         pdf.ln(10)
         
     return bytes(pdf.output())
