@@ -30,9 +30,8 @@ export const api = {
 
   async createProject(name: string, description?: string): Promise<{ project_id: string; status: string }> {
     const res = await apiClient.post('/api/projects', {
-      project_name: name,
-      project_description: description || '',
-      user_stories: [] // Initial empty requirements context
+      name,
+      description: description || ''
     });
     return res.data;
   },

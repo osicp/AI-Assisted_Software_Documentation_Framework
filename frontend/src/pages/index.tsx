@@ -115,7 +115,19 @@ export default function Dashboard() {
       }
     } catch (e: any) {
       console.error(e);
-      const errMsg = e.response?.data?.detail || e.message || "Unknown error";
+      let errMsg = "Unknown error";
+      if (e.response?.data?.detail) {
+        const detail = e.response.data.detail;
+        if (typeof detail === 'string') {
+          errMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errMsg = detail.map(err => `${err.msg} (${err.loc.slice(1).join('.')})`).join(', ');
+        } else {
+          errMsg = JSON.stringify(detail);
+        }
+      } else if (e.message) {
+        errMsg = e.message;
+      }
       showStatus(`Project Creation Rejected: ${errMsg}`, 'error');
     }
   };
