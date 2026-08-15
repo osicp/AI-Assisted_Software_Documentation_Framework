@@ -110,6 +110,35 @@ async def create_project(
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
 
+@app.get("/api/projects")
+async def list_projects(
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SCRUM_MASTER", "LEAD_DEVELOPER", "SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
+):
+    # Use triple-single quotes for docstring
+    '''
+    Lists all registered projects in the relational catalog.
+    '''
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, name, description FROM projects ORDER BY name ASC")
+        rows = cursor.fetchall()
+        projects = []
+        for r in rows:
+            projects.append({
+                "id": r["id"],
+                "name": r["name"],
+                "description": r["description"] or ""
+            })
+        return projects
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query projects database: {str(e)}"
+        )
+    finally:
+        conn.close()
+
 @app.post("/api/codebase/upload", status_code=status.HTTP_201_CREATED)
 async def upload_codebase(
     project_id: str = Query(..., description="Target project identifier"),
@@ -326,6 +355,42 @@ async def verify_ledger(
         "last_verified_id": audit_res.get("last_verified_id"),
         "last_block_signature": audit_res.get("last_block_signature")
     }
+
+
+@app.get("/api/ledger/blocks")
+async def get_ledger_blocks(
+    operator_id: str = Depends(check_role(["SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
+):
+    # Use triple-single quotes for docstring
+    '''
+    Retrieves all transaction blocks from the write-ahead ledger database table.
+    '''
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, project_id, timestamp, operator_id, transaction_type, payload, payload_hash, block_signature, prev_block_signature FROM write_ahead_ledger ORDER BY id DESC")
+        rows = cursor.fetchall()
+        blocks = []
+        for r in rows:
+            blocks.append({
+                "id": r["id"],
+                "project_id": r["project_id"],
+                "timestamp": r["timestamp"],
+                "operator_id": r["operator_id"],
+                "transaction_type": r["transaction_type"],
+                "payload": r["payload"],
+                "payload_hash": r["payload_hash"],
+                "block_signature": r["block_signature"],
+                "prev_block_signature": r["prev_block_signature"]
+            })
+        return blocks
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query ledger database: {str(e)}"
+        )
+    finally:
+        conn.close()
 
 @app.post("/api/uml/render")
 async def render_uml(

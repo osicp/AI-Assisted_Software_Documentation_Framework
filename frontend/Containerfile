@@ -1,8 +1,14 @@
-# Containerfile.frontend (Nginx Static Landing Page Container)
-FROM nginx:alpine
+# Multi-stage build for Next.js static export served by Nginx
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-# Copy the static public files to the Nginx root directory
-COPY ./public /usr/share/nginx/html
+FROM nginx:alpine
+# Copy the Next.js static export output (from /app/out) to the Nginx root directory
+COPY --from=builder /app/out /usr/share/nginx/html
 EXPOSE 3000
 
 # Configure Nginx to listen on port 3000 instead of default 80
