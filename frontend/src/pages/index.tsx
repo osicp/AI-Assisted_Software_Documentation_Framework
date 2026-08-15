@@ -342,7 +342,10 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'code' && (
-            <CodeViewer />
+            <CodeViewer 
+              astSymbols={astSymbols}
+              userStories={userStories}
+            />
           )}
 
           {activeTab === 'metrics' && (
