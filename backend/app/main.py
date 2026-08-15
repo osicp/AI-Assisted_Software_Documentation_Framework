@@ -110,6 +110,35 @@ async def create_project(
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
 
+@app.get("/api/projects")
+async def list_projects(
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "SCRUM_MASTER", "LEAD_DEVELOPER", "SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
+):
+    # Use triple-single quotes for docstring
+    '''
+    Lists all registered projects in the relational catalog.
+    '''
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, name, description FROM projects ORDER BY name ASC")
+        rows = cursor.fetchall()
+        projects = []
+        for r in rows:
+            projects.append({
+                "id": r["id"],
+                "name": r["name"],
+                "description": r["description"] or ""
+            })
+        return projects
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query projects database: {str(e)}"
+        )
+    finally:
+        conn.close()
+
 @app.post("/api/codebase/upload", status_code=status.HTTP_201_CREATED)
 async def upload_codebase(
     project_id: str = Query(..., description="Target project identifier"),
