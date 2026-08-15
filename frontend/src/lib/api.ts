@@ -78,7 +78,19 @@ export const api = {
       ast_symbols: astSymbols,
       refined_requirements: refinedRequirements || '',
     });
-    return res.data;
+    
+    let stories: UserStory[] = [];
+    if (res.data && Array.isArray(res.data.epics)) {
+      res.data.epics.forEach((epic: any) => {
+        if (epic.user_stories && Array.isArray(epic.user_stories)) {
+          stories = stories.concat(epic.user_stories);
+        }
+      });
+    } else if (res.data && Array.isArray(res.data.user_stories)) {
+      stories = res.data.user_stories;
+    }
+    
+    return { user_stories: stories };
   },
 
   // SBERT clustering
