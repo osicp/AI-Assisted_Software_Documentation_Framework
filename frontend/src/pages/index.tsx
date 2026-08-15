@@ -315,7 +315,14 @@ export default function Dashboard() {
         {/* Main tabs viewport content */}
         <main className="p-8 flex-1">
           {activeTab === 'ingest' && (
-            <DropZone />
+            <DropZone 
+              projectId={selectedProject?.id}
+              onUploadSuccess={(symbols) => {
+                setAstSymbols(symbols);
+                showStatus(`Successfully parsed codebase, extracted ${symbols.length} AST symbols.`, 'success');
+                setActiveTab('uml');
+              }}
+            />
           )}
 
           {activeTab === 'uml' && (

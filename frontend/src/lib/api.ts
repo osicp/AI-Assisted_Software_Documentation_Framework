@@ -37,27 +37,33 @@ export const api = {
     return res.data;
   },
 
-  // Codebase chunked upload
-  async uploadChunk(
+  // Codebase file upload
+  async uploadCodebase(
     projectId: string,
-    filename: string,
-    chunk: Blob,
-    chunkIndex: number,
-    totalChunks: number
-  ): Promise<any> {
+    versionTag: string,
+    file: File,
+    onUploadProgress?: (progressEvent: any) => void
+  ): Promise<{
+    version_id: string;
+    zip_checksum: string;
+    raw_size_bytes: number;
+    purified_size_bytes: number;
+    reduction_percentage: string;
+    status: string;
+    ast_symbols: ASTSymbol[];
+  }> {
     const formData = new FormData();
-    formData.append('file', chunk, filename);
+    formData.append('codebase_zip', file, file.name);
     
     const res = await apiClient.post('/api/codebase/upload', formData, {
       params: {
         project_id: projectId,
-        filename,
-        chunk_index: chunkIndex,
-        total_chunks: totalChunks,
+        version_tag: versionTag,
       },
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress,
     });
     return res.data;
   },
