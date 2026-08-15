@@ -27,7 +27,7 @@ def compile_ast_ctags_index(purified_workspace_dir: str) -> List[Dict[str, Any]]
         "-R",                               # Recursive walk
         "--output-format=json",             # JSON streaming output format
         "--fields=+n+p+s+i",                # Output line numbers, signatures, inheritance
-        "--languages=Java,Python,C++,C",     # Target languages
+        "--languages=Java,Python,C++,C,JavaScript,TypeScript",     # Target languages
         abs_workspace_dir
     ]
     
@@ -40,7 +40,10 @@ def compile_ast_ctags_index(purified_workspace_dir: str) -> List[Dict[str, Any]]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
         for line in result.stdout.splitlines():
             if line.strip():
-                symbol_data = json.loads(line)
+                try:
+                    symbol_data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
                 abs_path = symbol_data.get("path")
                 rel_path = os.path.relpath(abs_path, abs_workspace_dir) if abs_path else None
                 symbols.append({
