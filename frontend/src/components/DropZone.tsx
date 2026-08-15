@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Folder, Cpu, FileArchive, ShieldCheck, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { Upload, Cpu, FileArchive, ShieldCheck, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { ASTSymbol } from '../lib/types';
 
@@ -19,7 +19,7 @@ const STEPS = [
 export default function DropZone({ projectId, onUploadSuccess }: DropZoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const [versionTag, setVersionTag] = useState('v1.0.0');
-  const [directoryPath, setDirectoryPath] = useState('');
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0); // 0 = idle, 1 to 5 = active steps
@@ -132,11 +132,7 @@ export default function DropZone({ projectId, onUploadSuccess }: DropZoneProps) 
     }
   };
 
-  const handlePathSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!directoryPath.trim()) return;
-    setErrorMsg("Direct host drive scanning is isolated for security. Please package your codebase into a '.zip' file and upload it above.");
-  };
+
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -216,31 +212,7 @@ export default function DropZone({ projectId, onUploadSuccess }: DropZoneProps) 
             </button>
           </div>
 
-          {/* Absolute Directory path scanner */}
-          <form onSubmit={handlePathSubmit} className="glass rounded-xl p-5 border border-borderLine">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
-              <Folder className="w-3.5 h-3.5 text-slate-500" />
-              <span>Absolute Directory Path Scanner</span>
-            </h4>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={directoryPath}
-                onChange={(e) => setDirectoryPath(e.target.value)}
-                placeholder="/Users/username/workspace/target-repo"
-                className="flex-1 px-3 py-1.5 bg-slate-900 border border-borderLine text-slate-300 text-xs font-mono rounded focus:outline-none focus:border-blue-500 transition-all"
-              />
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold border border-borderLine hover:text-slate-100 transition-all"
-              >
-                Scan Path
-              </button>
-            </div>
-            <p className="text-[10px] text-slate-500 mt-2">
-              Provides direct workspace AST extraction for local directories on this host machine.
-            </p>
-          </form>
+
         </div>
 
         {/* Right Column: Execution Stepper & Results */}

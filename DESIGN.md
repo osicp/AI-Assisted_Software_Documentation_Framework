@@ -18,7 +18,7 @@ The central viewport is divided into **four core visualization tabs**, each mapp
 *   **Purpose**: The central control room for system initialization and codebase upload.
 *   **Key Visual Elements**:
     *   **Drag-and-Drop File Container**: An interactive upload boundary restricted programmatically to `.zip` file packages (`<input type="file" accept=".zip" />`).
-    *   **Absolute Directory Path Scanner**: A simple input text box enabling developers to provide direct host drive access (e.g., `/Users/username/workspace/target-repo`).
+    *   **Absolute Directory Path Scanner**: [REMOVED FOR SECURITY COMPLIANCE] Removed to enforce zero-trust container boundary isolation and protect against Local File Inclusion (LFI) traversal. Ingestion is strictly routed through explicit ZIP archive uploads.
     *   **Streaming Progress Indicators**: Dynamic CSS-transitioned progress bars displaying real-time upload progress, file-size summaries, and pipeline state updates.
     *   **Operational Pipeline Stepper**: Visual step indicators reflecting the backend execution states: *Ingesting Stream*, *Structural Noise Purifying*, *AST Symbol Indexing*, *Context Caching*, and *Ledger Audit Registration*.
     *   **Role Picker Dropdown**: Selects which locally-configured role key (see `scrummap.env` §6) the client attaches as the `X-ScrumMap-Role-Key` header on subsequent requests. The backend derives the enforced role from the key itself, not from this dropdown selection, so switching roles here only changes which key the browser sends — it cannot be used to spoof a role without possessing that role's key.
