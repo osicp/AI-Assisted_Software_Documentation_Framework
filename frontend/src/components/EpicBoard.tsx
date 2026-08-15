@@ -58,14 +58,18 @@ export default function EpicBoard({
       done: []
     };
 
-    userStories.forEach(story => {
-      const colId = storyColumns[story.id] || 'todo';
-      if (cols[colId]) {
-        cols[colId].push(story);
-      } else {
-        cols['todo'].push(story);
-      }
-    });
+    if (Array.isArray(userStories)) {
+      userStories.forEach(story => {
+        if (story && story.id) {
+          const colId = storyColumns[story.id] || 'todo';
+          if (cols[colId]) {
+            cols[colId].push(story);
+          } else {
+            cols['todo'].push(story);
+          }
+        }
+      });
+    }
 
     return cols;
   };
@@ -84,19 +88,36 @@ export default function EpicBoard({
     }
     setIsGenerating(true);
     try {
-      const res = await api.generateBacklog(sprintGoal, astSymbols);
-      setUserStories(res.user_stories);
+      const res = await api.generateBacklog(sprintGoal, astSymbols) as any;
       
-      // Reset column states for new stories
+      let stories: UserStory[] = [];
+      if (res) {
+        if (Array.isArray(res.user_stories)) {
+          stories = res.user_stories;
+        } else if (Array.isArray(res.epics)) {
+          res.epics.forEach((epic: any) => {
+            if (epic && Array.isArray(epic.user_stories)) {
+              stories = stories.concat(epic.user_stories);
+            }
+          });
+        } else if (Array.isArray(res)) {
+          stories = res;
+        }
+      }
+
+      setUserStories(stories);
+      
       const newCols: { [id: string]: string } = {};
-      res.user_stories.forEach(s => {
-        newCols[s.id] = 'todo';
+      stories.forEach(s => {
+        if (s && s.id) {
+          newCols[s.id] = 'todo';
+        }
       });
       setStoryColumns(newCols);
       
       setTerminalLogs(prev => [
         ...prev,
-        `[${new Date().toISOString()}] BACKLOG GENERATED: Loaded ${res.user_stories.length} sprint user stories.`
+        `[${new Date().toISOString()}] BACKLOG GENERATED: Loaded ${stories.length} sprint user stories.`
       ]);
     } catch (e: any) {
       console.error(e);
@@ -302,7 +323,7 @@ export default function EpicBoard({
             <span>Agile Gantt Timeline Schedulers</span>
           </h3>
           <div className="space-y-4 pt-2">
-            {userStories.map((story, index) => {
+            {Array.isArray(userStories) && userStories.map((story, index) => {
               // Mock start/widths for timeline display
               const startOffset = `${(index % 3) * 15}%`;
               const durationWidth = `${40 + (index % 4) * 12}%`;
