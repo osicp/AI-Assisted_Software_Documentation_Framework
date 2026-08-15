@@ -330,7 +330,15 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'backlog' && (
-            <EpicBoard />
+            <EpicBoard 
+              projectId={selectedProject?.id}
+              projectName={selectedProject?.name}
+              projectDescription={selectedProject?.description || ''}
+              astSymbols={astSymbols}
+              userStories={userStories}
+              setUserStories={setUserStories}
+              classDiagramUrl={classDiagramUrl}
+            />
           )}
 
           {activeTab === 'code' && (

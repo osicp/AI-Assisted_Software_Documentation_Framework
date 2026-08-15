@@ -1,10 +1,369 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { 
+  Kanban, 
+  Plus, 
+  Calendar, 
+  Terminal, 
+  FileText, 
+  Play, 
+  Loader2, 
+  ArrowRight, 
+  ShieldCheck, 
+  AlertTriangle 
+} from 'lucide-react';
+import { api } from '../lib/api';
+import { ASTSymbol, UserStory, AuditReport } from '../lib/types';
 
-export default function EpicBoard() {
+interface EpicBoardProps {
+  projectId?: string;
+  projectName?: string;
+  projectDescription?: string;
+  astSymbols?: ASTSymbol[];
+  userStories: UserStory[];
+  setUserStories: (stories: UserStory[]) => void;
+  classDiagramUrl: string | null;
+}
+
+interface KanbanColumns {
+  [key: string]: UserStory[];
+}
+
+export default function EpicBoard({
+  projectId,
+  projectName = "Default Project",
+  projectDescription = "",
+  astSymbols = [],
+  userStories,
+  setUserStories,
+  classDiagramUrl
+}: EpicBoardProps) {
+  const [sprintGoal, setSprintGoal] = useState('Build a secure order processing and payment transaction system');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isCompilingPdf, setIsCompilingPdf] = useState(false);
+
+  // Kanban column placements (Todo, In Progress, Testing, Done)
+  // We maintain a map of story IDs to columns locally
+  const [storyColumns, setStoryColumns] = useState<{ [id: string]: string }>({});
+
+  // Ledger verify terminal state
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [isRunningAudit, setIsRunningAudit] = useState(false);
+
+  // Parse columns
+  const getKanbanData = (): KanbanColumns => {
+    const cols: KanbanColumns = {
+      todo: [],
+      in_progress: [],
+      testing: [],
+      done: []
+    };
+
+    userStories.forEach(story => {
+      const colId = storyColumns[story.id] || 'todo';
+      if (cols[colId]) {
+        cols[colId].push(story);
+      } else {
+        cols['todo'].push(story);
+      }
+    });
+
+    return cols;
+  };
+
+  const moveStory = (storyId: string, targetCol: string) => {
+    setStoryColumns(prev => ({
+      ...prev,
+      [storyId]: targetCol
+    }));
+  };
+
+  const handleGenerateBacklog = async () => {
+    if (!projectId) {
+      alert("Please select or create a project first.");
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const res = await api.generateBacklog(sprintGoal, astSymbols);
+      setUserStories(res.user_stories);
+      
+      // Reset column states for new stories
+      const newCols: { [id: string]: string } = {};
+      res.user_stories.forEach(s => {
+        newCols[s.id] = 'todo';
+      });
+      setStoryColumns(newCols);
+      
+      setTerminalLogs(prev => [
+        ...prev,
+        `[${new Date().toISOString()}] BACKLOG GENERATED: Loaded ${res.user_stories.length} sprint user stories.`
+      ]);
+    } catch (e: any) {
+      console.error(e);
+      alert("Failed to generate sprint backlog: " + (e.response?.data?.detail || e.message));
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCompilePdf = async () => {
+    if (userStories.length === 0) {
+      alert("No user stories available to compile into a report.");
+      return;
+    }
+    setIsCompilingPdf(true);
+    try {
+      const blob = await api.downloadPdfReport(
+        projectName,
+        projectDescription,
+        userStories,
+        classDiagramUrl || '',
+        projectId
+      );
+      
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `scrummap_${projectName.toLowerCase().replace(/\s+/g, '_')}_report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      console.error(e);
+      alert("PDF compilation failed.");
+    } finally {
+      setIsCompilingPdf(false);
+    }
+  };
+
+  const runLedgerAudit = async () => {
+    setIsRunningAudit(true);
+    setTerminalLogs(prev => [...prev, `[system@scrummap-workstation]$ python3 backend/ledger_verifier.py verify`]);
+    try {
+      const res = await api.verifyLedger(1);
+      
+      setTerminalLogs(prev => [
+        ...prev,
+        `Analyzing write-ahead relational transaction chains...`,
+        `Checked ${res.scanned_blocks} transaction blocks.`,
+        `Last verified Block ID: ${res.last_verified_id || 'N/A'}`,
+        `Signature check validation: ${res.ledger_integrity === 'OK' ? 'PASSED (Chains intact)' : 'FAILED (Tampering detected)'}`,
+        `Audit result status code: ${res.ledger_integrity === 'OK' ? 'SUCCESS' : 'COMPROMISED'}`
+      ]);
+    } catch (e: any) {
+      setTerminalLogs(prev => [...prev, `Audit Execution Error: ${e.message}`]);
+    } finally {
+      setIsRunningAudit(false);
+    }
+  };
+
+  const columns = getKanbanData();
+
   return (
-    <div className="glass rounded-xl p-8 max-w-2xl mx-auto text-center border border-borderLine mt-10">
-      <h2 className="text-xl font-semibold mb-4 text-emerald-400">Agile Tasks & Epic Board</h2>
-      <p className="text-slate-400">EpicBoard Component Placeholder</p>
+    <div className="space-y-8 animate-[fadeIn_0.5s_ease-out] select-none">
+      
+      {/* 1. Header options & generator inputs */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Sprint Goal Ingestion */}
+        <div className="lg:col-span-2 glass rounded-xl p-5 border border-borderLine">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+            <Kanban className="w-3.5 h-3.5 text-blue-400" />
+            <span>Sprint Goal Configuration</span>
+          </h3>
+          <div className="flex gap-4">
+            <input
+              type="text"
+              value={sprintGoal}
+              onChange={(e) => setSprintGoal(e.target.value)}
+              placeholder="e.g. Build authentication gateway and database endpoints"
+              className="flex-1 px-3 py-2 bg-slate-900 border border-borderLine text-slate-300 text-xs rounded focus:outline-none focus:border-blue-500 transition-all"
+            />
+            <button
+              onClick={handleGenerateBacklog}
+              disabled={isGenerating || astSymbols.length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold transition-all disabled:opacity-50"
+            >
+              {isGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+              <span>Generate Backlog</span>
+            </button>
+          </div>
+          {astSymbols.length === 0 && (
+            <p className="text-[10px] text-amber-400 mt-2 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              <span>Please ingest a codebase ZIP in Ingestion Hub to enable backlog generation from AST symbols.</span>
+            </p>
+          )}
+        </div>
+
+        {/* Action button Panel */}
+        <div className="lg:col-span-1 glass rounded-xl p-5 border border-borderLine flex flex-col justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            Governance Report Compiler
+          </h3>
+          <p className="text-[10px] text-slate-500 leading-normal mb-3">
+            Click compile to write requirements, trace code, and embed architecture class diagram URLs into a governance-signed PDF document.
+          </p>
+          <button
+            onClick={handleCompilePdf}
+            disabled={isCompilingPdf || userStories.length === 0}
+            className="flex items-center justify-center gap-2 w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold transition-all disabled:opacity-50"
+          >
+            {isCompilingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+            <span>Compile PDF Report</span>
+          </button>
+        </div>
+
+      </div>
+
+      {/* 2. Interactive Kanban board grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {Object.entries(columns).map(([colId, stories]) => {
+          const colLabel = colId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+          
+          return (
+            <div key={colId} className="bg-slate-950/40 border border-borderLine rounded-xl p-4 min-h-[350px] flex flex-col">
+              <div className="flex justify-between items-center border-b border-slate-900 pb-2 mb-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">{colLabel}</h4>
+                <span className="text-[10px] bg-slate-900 border border-borderLine text-slate-400 px-2 py-0.5 rounded-full font-bold">
+                  {stories.length}
+                </span>
+              </div>
+
+              {/* Cards Container */}
+              <div className="flex-1 space-y-3 overflow-y-auto max-h-[450px] pr-1">
+                {stories.map((story) => (
+                  <div 
+                    key={story.id} 
+                    className="p-3 bg-slate-900/60 border border-borderLine rounded-lg hover:border-slate-700 transition-all select-none space-y-2"
+                  >
+                    <div className="flex justify-between items-start gap-1">
+                      <span className="text-[9px] font-bold bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-mono">
+                        {story.id}
+                      </span>
+                      <span className="text-[9px] font-bold bg-slate-950 border border-borderLine text-slate-400 px-1.5 py-0.5 rounded">
+                        {story.story_points} SP
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-200 leading-normal font-sans">
+                      <strong className="text-slate-400 font-normal">As a</strong> {story.role}, <strong className="text-slate-400 font-normal">I want to</strong> {story.action} <strong className="text-slate-400 font-normal">so that</strong> {story.benefit}
+                    </p>
+
+                    {/* Traceability files */}
+                    {story.code_pointers && story.code_pointers.length > 0 && (
+                      <div className="text-[9px] text-slate-500 border-t border-slate-900/50 pt-2 font-mono truncate" title={story.code_pointers[0].file}>
+                        Pointers: {story.code_pointers[0].file.split('/').pop()}:{story.code_pointers[0].lines}
+                      </div>
+                    )}
+
+                    {/* Move controls (interactive) */}
+                    <div className="flex justify-end gap-1 pt-1">
+                      {colId !== 'todo' && (
+                        <button 
+                          onClick={() => moveStory(story.id, colId === 'done' ? 'testing' : colId === 'testing' ? 'in_progress' : 'todo')}
+                          className="text-[9px] bg-slate-950 hover:bg-slate-900 border border-borderLine text-slate-400 hover:text-slate-200 px-1.5 py-0.5 rounded"
+                        >
+                          ◀
+                        </button>
+                      )}
+                      {colId !== 'done' && (
+                        <button 
+                          onClick={() => moveStory(story.id, colId === 'todo' ? 'in_progress' : colId === 'in_progress' ? 'testing' : 'done')}
+                          className="text-[9px] bg-slate-950 hover:bg-slate-900 border border-borderLine text-slate-400 hover:text-slate-200 px-1.5 py-0.5 rounded"
+                        >
+                          ▶
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {stories.length === 0 && (
+                  <div className="text-center py-10 text-[10px] text-slate-600 italic border border-dashed border-slate-900 rounded-lg">
+                    No items placed.
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 3. Bottom panels: Gantt chart & Ledger terminal logs */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Interactive Gantt Timeline map */}
+        <div className="lg:col-span-2 glass rounded-xl p-5 border border-borderLine">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+            <span>Agile Gantt Timeline Schedulers</span>
+          </h3>
+          <div className="space-y-4 pt-2">
+            {userStories.map((story, index) => {
+              // Mock start/widths for timeline display
+              const startOffset = `${(index % 3) * 15}%`;
+              const durationWidth = `${40 + (index % 4) * 12}%`;
+              
+              return (
+                <div key={story.id} className="flex items-center gap-4 text-xs font-mono select-none">
+                  <span className="w-16 text-slate-500">{story.id}</span>
+                  <div className="flex-1 bg-slate-900 h-6 rounded border border-slate-800 relative">
+                    <div 
+                      style={{ left: startOffset, width: durationWidth }}
+                      className="absolute top-1 bottom-1 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 rounded border border-blue-500/30 flex items-center px-2 text-[8px] font-sans text-white truncate font-bold shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                    >
+                      Sprint Week {1 + (index % 2)}: {story.role}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {userStories.length === 0 && (
+              <div className="text-center py-6 text-xs text-slate-600 italic">
+                Generate sprint backlog user stories to populate the Gantt schedule.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Ledger Terminal check log console */}
+        <div className="lg:col-span-1 glass rounded-xl p-5 border border-borderLine flex flex-col justify-between">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+              <Terminal className="w-3.5 h-3.5 text-rose-500" />
+              <span>Relational Ledger Auditor</span>
+            </h3>
+            <p className="text-[10px] text-slate-500 leading-normal mb-3">
+              Trigger a cryptographic signature verify scan on the SQLite transaction ledger table.
+            </p>
+
+            {/* Terminal Screen */}
+            <div className="w-full bg-black border border-slate-900 rounded p-3 h-44 overflow-y-auto font-mono text-[9px] text-emerald-400 space-y-1.5 select-text">
+              {terminalLogs.map((log, idx) => (
+                <div key={idx} className="leading-relaxed">{log}</div>
+              ))}
+              {terminalLogs.length === 0 && (
+                <div className="text-slate-600 italic">Terminal ready. Click audit to verify database chains...</div>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={runLedgerAudit}
+            disabled={isRunningAudit}
+            className="flex items-center justify-center gap-2 w-full mt-4 py-1.5 bg-slate-900 border border-borderLine hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded text-xs font-bold transition-all disabled:opacity-50"
+          >
+            {isRunningAudit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
+            <span>Run Integrity Scan</span>
+          </button>
+        </div>
+
+      </div>
+
     </div>
   );
 }
