@@ -94,10 +94,26 @@ def dilute_syntactic_structure(file_content: str, file_ext: str) -> str:
                 continue
                 
             if i + 2 < n and file_content[i:i+3] in ('"""', "'''"):
-                in_string = file_content[i:i+3]
-                out.append(in_string)
-                i += 3
-                continue
+                line_start = i
+                is_assignment = False
+                while line_start > 0 and file_content[line_start - 1] not in ('\n', '\r'):
+                    line_start -= 1
+                line_prefix = file_content[line_start:i]
+                if '=' in line_prefix and '==' not in line_prefix and '!=' not in line_prefix and '+=' not in line_prefix:
+                    is_assignment = True
+                
+                if not is_assignment:
+                    target_quote = file_content[i:i+3]
+                    i += 3
+                    while i + 2 < n and file_content[i:i+3] != target_quote:
+                        i += 1
+                    i += 3
+                    continue
+                else:
+                    in_string = file_content[i:i+3]
+                    out.append(in_string)
+                    i += 3
+                    continue
                 
             if char in ('"', "'"):
                 in_string = char
