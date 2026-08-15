@@ -327,6 +327,42 @@ async def verify_ledger(
         "last_block_signature": audit_res.get("last_block_signature")
     }
 
+
+@app.get("/api/ledger/blocks")
+async def get_ledger_blocks(
+    operator_id: str = Depends(check_role(["SECURITY_AUDITOR", "SYSTEM_ADMIN"]))
+):
+    # Use triple-single quotes for docstring
+    '''
+    Retrieves all transaction blocks from the write-ahead ledger database table.
+    '''
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, project_id, timestamp, operator_id, transaction_type, payload, payload_hash, block_signature, prev_block_signature FROM write_ahead_ledger ORDER BY id DESC")
+        rows = cursor.fetchall()
+        blocks = []
+        for r in rows:
+            blocks.append({
+                "id": r["id"],
+                "project_id": r["project_id"],
+                "timestamp": r["timestamp"],
+                "operator_id": r["operator_id"],
+                "transaction_type": r["transaction_type"],
+                "payload": r["payload"],
+                "payload_hash": r["payload_hash"],
+                "block_signature": r["block_signature"],
+                "prev_block_signature": r["prev_block_signature"]
+            })
+        return blocks
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query ledger database: {str(e)}"
+        )
+    finally:
+        conn.close()
+
 @app.post("/api/uml/render")
 async def render_uml(
     payload: UMLRenderRequest,
