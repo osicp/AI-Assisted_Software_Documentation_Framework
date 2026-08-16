@@ -49,6 +49,7 @@ export default function Dashboard() {
   const [userStories, setUserStories] = useState<UserStory[]>([]);
   const [astSymbols, setAstSymbols] = useState<ASTSymbol[]>([]);
   const [classDiagramUrl, setClassDiagramUrl] = useState<string | null>(null);
+  const [sequenceDiagramUrl, setSequenceDiagramUrl] = useState<string | null>(null);
 
   // Load initially
   useEffect(() => {
@@ -341,6 +342,7 @@ export default function Dashboard() {
             <UMLCanvas 
               astSymbols={astSymbols} 
               setClassDiagramUrl={setClassDiagramUrl}
+              setSequenceDiagramUrl={setSequenceDiagramUrl}
             />
           )}
 
@@ -353,6 +355,7 @@ export default function Dashboard() {
               userStories={userStories}
               setUserStories={setUserStories}
               classDiagramUrl={classDiagramUrl}
+              sequenceDiagramUrl={sequenceDiagramUrl}
             />
           )}
 

@@ -22,6 +22,7 @@ interface EpicBoardProps {
   userStories: UserStory[];
   setUserStories: (stories: UserStory[]) => void;
   classDiagramUrl: string | null;
+  sequenceDiagramUrl?: string | null;
 }
 
 interface KanbanColumns {
@@ -35,7 +36,8 @@ export default function EpicBoard({
   astSymbols = [],
   userStories,
   setUserStories,
-  classDiagramUrl
+  classDiagramUrl,
+  sequenceDiagramUrl
 }: EpicBoardProps) {
   const [sprintGoal, setSprintGoal] = useState('Build a secure order processing and payment transaction system');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -139,6 +141,7 @@ export default function EpicBoard({
         projectDescription,
         userStories,
         classDiagramUrl || '',
+        sequenceDiagramUrl || '',
         projectId
       );
       

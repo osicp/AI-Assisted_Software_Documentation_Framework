@@ -20,7 +20,8 @@ def compile_pdf_report(
     project_name: str,
     project_description: Optional[str],
     user_stories: List[Dict[str, Any]],
-    class_diagram_url: Optional[str] = None
+    class_diagram_url: Optional[str] = None,
+    sequence_diagram_url: Optional[str] = None
 ) -> bytes:
     # Use triple-single quotes for docstring
     '''
@@ -83,29 +84,53 @@ def compile_pdf_report(
         pdf.ln(5)
         
     # 3. Diagrams Section
-    if class_diagram_url:
-        pdf.add_page()
-        pdf.set_font("helvetica", "B", 14)
-        pdf.cell(0, 10, "System Architecture Diagrams", new_x="LMARGIN", new_y="NEXT")
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(5)
-        
+    if class_diagram_url or sequence_diagram_url:
         import httpx
         import io
-        img_embedded = False
-        try:
-            resp = httpx.get(class_diagram_url, timeout=10.0)
-            if resp.status_code == 200:
-                img_data = io.BytesIO(resp.content)
-                pdf.image(img_data, w=180)
-                img_embedded = True
-        except Exception:
-            pass
+        
+        if class_diagram_url:
+            pdf.add_page()
+            pdf.set_font("helvetica", "B", 14)
+            pdf.cell(0, 10, "System Architecture: Class Diagram", new_x="LMARGIN", new_y="NEXT")
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
             
-        if not img_embedded:
-            pdf.set_font("helvetica", "I", 10)
-            pdf.multi_cell(0, 6, f"UML Diagram URL: {class_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(10)
+            img_embedded = False
+            try:
+                resp = httpx.get(class_diagram_url, timeout=10.0)
+                if resp.status_code == 200:
+                    img_data = io.BytesIO(resp.content)
+                    pdf.image(img_data, w=180)
+                    img_embedded = True
+            except Exception:
+                pass
+                
+            if not img_embedded:
+                pdf.set_font("helvetica", "I", 10)
+                pdf.multi_cell(0, 6, f"Class Diagram URL: {class_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(10)
+
+        if sequence_diagram_url:
+            pdf.add_page()
+            pdf.set_font("helvetica", "B", 14)
+            pdf.cell(0, 10, "System Behavior: Sequence Diagram", new_x="LMARGIN", new_y="NEXT")
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
+            
+            img_embedded = False
+            try:
+                resp = httpx.get(sequence_diagram_url, timeout=10.0)
+                if resp.status_code == 200:
+                    img_data = io.BytesIO(resp.content)
+                    pdf.image(img_data, w=180)
+                    img_embedded = True
+            except Exception:
+                pass
+                
+            if not img_embedded:
+                pdf.set_font("helvetica", "I", 10)
+                pdf.multi_cell(0, 6, f"Sequence Diagram URL: {sequence_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(10)
         
     return bytes(pdf.output())
 

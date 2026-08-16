@@ -67,6 +67,7 @@ class PDFCompileRequest(BaseModel):
     project_description: Optional[str] = None
     user_stories: List[Dict[str, Any]]
     class_diagram_url: Optional[str] = None
+    sequence_diagram_url: Optional[str] = None
     project_id: Optional[str] = None
 
 class StubsDownloadRequest(BaseModel):
@@ -487,7 +488,8 @@ async def generate_project_pdf(
             project_name=payload.project_name,
             project_description=payload.project_description,
             user_stories=payload.user_stories,
-            class_diagram_url=payload.class_diagram_url
+            class_diagram_url=payload.class_diagram_url,
+            sequence_diagram_url=payload.sequence_diagram_url
         )
         commit_transaction_to_ledger(
             operator_id=operator_id,

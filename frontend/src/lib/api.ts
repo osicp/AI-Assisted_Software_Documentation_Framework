@@ -148,6 +148,7 @@ export const api = {
     projectDescription: string,
     userStories: UserStory[],
     classDiagramUrl?: string,
+    sequenceDiagramUrl?: string,
     projectId?: string
   ): Promise<Blob> {
     const res = await apiClient.post(
@@ -157,6 +158,7 @@ export const api = {
         project_description: projectDescription,
         user_stories: userStories,
         class_diagram_url: classDiagramUrl || '',
+        sequence_diagram_url: sequenceDiagramUrl || '',
         project_id: projectId || '',
       },
       { responseType: 'blob' }

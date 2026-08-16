@@ -6,9 +6,10 @@ import { ASTSymbol } from '../lib/types';
 interface UMLCanvasProps {
   astSymbols?: ASTSymbol[];
   setClassDiagramUrl?: (url: string | null) => void;
+  setSequenceDiagramUrl?: (url: string | null) => void;
 }
 
-export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl }: UMLCanvasProps) {
+export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequenceDiagramUrl }: UMLCanvasProps) {
   // Editable text diagrams
   const [classDiagramText, setClassDiagramText] = useState('');
   const [sequenceDiagramText, setSequenceDiagramText] = useState('');
@@ -108,6 +109,9 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl }: UMLCa
 
       const seqRes = await api.renderUml(sequenceDiagramText);
       setSequenceRenderUrl(seqRes.render_url);
+      if (setSequenceDiagramUrl) {
+        setSequenceDiagramUrl(seqRes.render_url);
+      }
     } catch (e) {
       console.error(e);
       alert("PlantUML render server communication failure.");
