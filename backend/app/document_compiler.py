@@ -54,8 +54,27 @@ def compile_pdf_report(
         benefit = story.get("benefit", "gain value")
         pts = story.get("story_points", 0.0)
         
+        # Sanitize LLM-injected prefixes to prevent duplication
+        role_str = role.strip()
+        if role_str.lower().startswith("as a "):
+            role_str = role_str[5:]
+        elif role_str.lower().startswith("as "):
+            role_str = role_str[3:]
+            
+        action_str = action.strip()
+        if action_str.lower().startswith("i want to "):
+            action_str = action_str[10:]
+        elif action_str.lower().startswith("want to "):
+            action_str = action_str[8:]
+            
+        benefit_str = benefit.strip()
+        if benefit_str.lower().startswith("so that "):
+            benefit_str = benefit_str[8:]
+        elif benefit_str.lower().startswith("so "):
+            benefit_str = benefit_str[3:]
+
         pdf.set_font("helvetica", "B", 11)
-        pdf.cell(0, 8, f"{sid}: As a {role}, I want to {action} so that {benefit} [Est: {pts} SP]", new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 6, f"{sid}: As a {role_str}, I want to {action_str} so that {benefit_str} [Est: {pts} SP]", new_x="LMARGIN", new_y="NEXT")
         
         # Unhappy Paths
         pdf.set_font("helvetica", "I", 9)
