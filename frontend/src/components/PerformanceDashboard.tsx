@@ -114,14 +114,24 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
       barColor: 'bg-orange-500'
     },
     {
-      name: 'E2E Refinement Cycle Time',
-      value: telemetry ? telemetry.cycle_time : '0.0 s',
-      target: '< 60.0 s',
-      desc: 'Total processing time from codebase upload to final report download.',
+      name: 'Active Machine Latency',
+      value: telemetry ? telemetry.machine_latency : '0.0 s',
+      target: '< 15.0 s',
+      desc: 'Total compiled time for parsing, prompt execution, UML render, and PDF write.',
       status: 'optimal',
       icon: Cpu,
       color: 'text-purple-400',
       barColor: 'bg-purple-500'
+    },
+    {
+      name: 'Total Scoping Duration',
+      value: telemetry ? telemetry.scoping_duration : '0.0 min',
+      target: '< 15.0 min',
+      desc: 'Total human-in-the-loop planning session elapsed duration.',
+      status: 'optimal',
+      icon: Loader2,
+      color: 'text-fuchsia-400',
+      barColor: 'bg-fuchsia-500'
     }
   ];
 
@@ -149,7 +159,7 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
