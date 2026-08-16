@@ -868,6 +868,10 @@ async def get_telemetry_metrics(project_id: Optional[str] = None):
         "scoping_duration": scoping_duration
     }
 
+@app.get("/api/health")
+async def health_check():
+    return {"status": "healthy"}
+
 
 
 

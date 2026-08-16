@@ -167,5 +167,14 @@ export const api = {
       { responseType: 'blob' }
     );
     return res.data;
+  },
+
+  async checkHealth(): Promise<boolean> {
+    try {
+      const res = await apiClient.get('/api/health');
+      return res.data && res.data.status === 'healthy';
+    } catch {
+      return false;
+    }
   }
 };

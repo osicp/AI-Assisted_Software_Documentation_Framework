@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [roleKey, setRoleKey] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'info' | 'success' | 'error' } | null>(null);
+  const [isServerOnline, setIsServerOnline] = useState<boolean | null>(null);
 
   // Global project assets state (shared between views)
   const [userStories, setUserStories] = useState<UserStory[]>([]);
@@ -63,6 +64,16 @@ export default function Dashboard() {
     localStorage.setItem('scrummap_role_key', savedKey);
 
     loadProjects();
+  }, []);
+
+  useEffect(() => {
+    const verifyHealth = async () => {
+      const online = await api.checkHealth();
+      setIsServerOnline(online);
+    };
+    verifyHealth();
+    const interval = setInterval(verifyHealth, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadProjects = async () => {
@@ -308,10 +319,24 @@ export default function Dashboard() {
             </button>
 
             {/* Server-status Dot */}
-            <div className="flex items-center gap-1.5 ml-2 border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
-              <span className="text-[10px] uppercase font-bold text-emerald-400">Online</span>
-            </div>
+            {isServerOnline === null && (
+              <div className="flex items-center gap-1.5 ml-2 border border-slate-500/20 bg-slate-500/10 px-2.5 py-1 rounded-full animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                <span className="text-[10px] uppercase font-bold text-slate-400">Connecting...</span>
+              </div>
+            )}
+            {isServerOnline === true && (
+              <div className="flex items-center gap-1.5 ml-2 border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
+                <span className="text-[10px] uppercase font-bold text-emerald-400">Online</span>
+              </div>
+            )}
+            {isServerOnline === false && (
+              <div className="flex items-center gap-1.5 ml-2 border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_#ef4444]" />
+                <span className="text-[10px] uppercase font-bold text-rose-400">Offline</span>
+              </div>
+            )}
           </div>
         </header>
 
