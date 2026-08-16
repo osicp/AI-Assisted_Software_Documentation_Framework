@@ -323,25 +323,54 @@ export default function EpicBoard({
             <span>Agile Gantt Timeline Schedulers</span>
           </h3>
           <div className="space-y-4 pt-2">
-            {Array.isArray(userStories) && userStories.map((story, index) => {
-              // Mock start/widths for timeline display
-              const startOffset = `${(index % 3) * 15}%`;
-              const durationWidth = `${40 + (index % 4) * 12}%`;
+            {(() => {
+              let devATime = 0;
+              let devBTime = 0;
+              const totalDays = 10;
               
-              return (
-                <div key={story.id} className="flex items-center gap-4 text-xs font-mono select-none">
-                  <span className="w-16 text-slate-500">{story.id}</span>
-                  <div className="flex-1 bg-slate-900 h-6 rounded border border-slate-800 relative">
-                    <div 
-                      style={{ left: startOffset, width: durationWidth }}
-                      className="absolute top-1 bottom-1 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 rounded border border-blue-500/30 flex items-center px-2 text-[8px] font-sans text-white truncate font-bold shadow-[0_0_10px_rgba(59,130,246,0.2)]"
-                    >
-                      Sprint Week {1 + (index % 2)}: {story.role}
+              return Array.isArray(userStories) && userStories.map((story, index) => {
+                const sp = story.story_points || 3.0;
+                
+                let durationDays = 2;
+                if (sp <= 1) durationDays = 1;
+                else if (sp <= 2) durationDays = 1.5;
+                else if (sp <= 3) durationDays = 2;
+                else if (sp <= 5) durationDays = 3;
+                else durationDays = 5;
+                
+                let startDay = 0;
+                if (index % 2 === 0) {
+                  startDay = devATime;
+                  devATime = Math.min(totalDays, devATime + durationDays);
+                } else {
+                  startDay = devBTime;
+                  devBTime = Math.min(totalDays, devBTime + durationDays);
+                }
+                
+                if (startDay + durationDays > totalDays) {
+                  durationDays = Math.max(1, totalDays - startDay);
+                }
+                
+                const startOffset = `${(startDay / totalDays) * 100}%`;
+                const durationWidth = `${(durationDays / totalDays) * 100}%`;
+                const weekNum = startDay < 5 ? 1 : 2;
+                const endDayVal = Math.min(totalDays, startDay + durationDays);
+                
+                return (
+                  <div key={story.id} className="flex items-center gap-4 text-xs font-mono select-none">
+                    <span className="w-16 text-slate-500">{story.id}</span>
+                    <div className="flex-1 bg-slate-900 h-6 rounded border border-slate-800 relative">
+                      <div 
+                        style={{ left: startOffset, width: durationWidth }}
+                        className="absolute top-1 bottom-1 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 rounded border border-blue-500/30 flex items-center px-2 text-[8px] font-sans text-white truncate font-bold shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                      >
+                        Sprint W{weekNum} (Day {Math.floor(startDay) + 1}-{Math.ceil(endDayVal)}): {story.role}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
             
             {userStories.length === 0 && (
               <div className="text-center py-6 text-xs text-slate-600 italic">
