@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, Depends, UploadFile, File, Form, Query, HTTPException, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
 
 from backend.app.config import settings
 from backend.app.auth import resolve_operator_role, check_role
@@ -67,6 +68,10 @@ class PDFCompileRequest(BaseModel):
     user_stories: List[Dict[str, Any]]
     class_diagram_url: Optional[str] = None
     project_id: Optional[str] = None
+
+class StubsDownloadRequest(BaseModel):
+    ast_symbols: List[Dict[str, Any]]
+    user_stories: List[Dict[str, Any]]
 
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -511,6 +516,76 @@ async def generate_project_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=scrummap_{payload.project_name.lower().replace(' ', '_')}_report.pdf"}
     )
+
+@app.post("/api/project/stubs/download")
+async def download_project_stubs(payload: StubsDownloadRequest):
+    import io
+    import zipfile
+    
+    # Group AST symbols by file path
+    grouped_files = {}
+    for sym in payload.ast_symbols:
+        path = sym.get("path", "src/main/java/com/enterprise/Unnamed.java")
+        if path not in grouped_files:
+            grouped_files[path] = []
+        grouped_files[path].append(sym)
+        
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+        for file_path, symbols in grouped_files.items():
+            class_name = file_path.split("/")[-1].replace(".java", "") if "/" in file_path else file_path.replace(".java", "")
+            if not class_name:
+                class_name = "Service"
+                
+            # Find matching story
+            matching_story = None
+            for story in payload.user_stories:
+                pointers = story.get("code_pointers", []) or []
+                if any(class_name in cp.get("file", "") for cp in pointers):
+                    matching_story = story
+                    break
+                    
+            lines = [
+                "package com.enterprise;",
+                ""
+            ]
+            
+            if matching_story:
+                lines.extend([
+                    "/**",
+                    f" * @Requirement {matching_story.get('id', 'STORY-XX')}",
+                    f" * As a {matching_story.get('role', 'User')}, I want to {matching_story.get('action', 'action')} so that {matching_story.get('benefit', 'benefit')}",
+                    " */"
+                ])
+                
+            lines.append(f"public class {class_name} {{")
+            
+            for sym in symbols:
+                kind = sym.get("kind", "")
+                name = sym.get("name", "")
+                sig = sym.get("signature", "()")
+                if kind != "class" and name:
+                    lines.extend([
+                        "    /**",
+                        f"     * Injected governance stub for {name}",
+                        "     */",
+                        f"    public void {name}{sig} {{",
+                        "        // TODO: Implement according to requirements",
+                        "    }}",
+                        ""
+                    ])
+                    
+            lines.append("}")
+            content = "\n".join(lines)
+            zip_file.writestr(file_path, content)
+            
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=scrummap_purified_skeleton.zip"}
+    )
+
 
 
 

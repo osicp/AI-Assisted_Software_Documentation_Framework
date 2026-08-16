@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Code2, Folder, FileCode, Download, CheckCircle, FileText, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { ASTSymbol, UserStory } from '../lib/types';
+import axios from 'axios';
 
 interface CodeViewerProps {
   astSymbols?: ASTSymbol[];
@@ -45,13 +46,20 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
     }));
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setIsDownloading(true);
-    setTimeout(() => {
-      setIsDownloading(false);
-      // Simulate file download
-      const content = "/* ScrumMap Skeletal Project Bootstrap */";
-      const blob = new Blob([content], { type: "application/zip" });
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/project/stubs/download`,
+        {
+          ast_symbols: astSymbols,
+          user_stories: userStories
+        },
+        {
+          responseType: 'blob'
+        }
+      );
+      const blob = new Blob([response.data], { type: "application/zip" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -60,7 +68,12 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    }, 1200);
+    } catch (err) {
+      console.error("Stub download failed", err);
+      alert("Failed to download stubs project archive.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Dynamic code synthesizers
