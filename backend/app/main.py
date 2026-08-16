@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from backend.app.config import settings
 from backend.app.auth import resolve_operator_role, check_role
 from backend.app.logger import setup_logging
-from backend.app.ledger import get_db_connection, commit_transaction_to_ledger, audit_ledger_integrity
+from backend.app.ledger import get_db_connection, commit_transaction_to_ledger, audit_ledger_integrity, init_governance_db
 from backend.app.optimizer import extract_and_purify_zip
 from backend.app.parser import compile_ast_ctags_index
 from backend.app.sbert_clustering import cluster_and_align_backlog
@@ -40,6 +40,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Ensure database tables are created on startup
+@app.on_event("startup")
+def startup_db_init():
+    init_governance_db()
 
 # Schema definitions
 class ProjectCreate(BaseModel):
