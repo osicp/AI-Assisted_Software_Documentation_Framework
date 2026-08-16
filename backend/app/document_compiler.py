@@ -37,7 +37,7 @@ def compile_pdf_report(
     
     pdf.set_font("helvetica", "", 10)
     desc = project_description or "No description provided."
-    pdf.multi_cell(0, 8, f"Description: {desc}")
+    pdf.multi_cell(0, 8, f"Description: {desc}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
     
     # 2. Sprint Backlog Section
@@ -65,7 +65,7 @@ def compile_pdf_report(
             pdf.set_font("helvetica", "", 9)
             for path in paths:
                 pdf.cell(15)
-                pdf.multi_cell(0, 5, f"- {path}")
+                pdf.multi_cell(0, 5, f"- {path}", new_x="LMARGIN", new_y="NEXT")
                 
         # Code Pointers
         pointers = story.get("code_pointers", [])
@@ -79,7 +79,7 @@ def compile_pdf_report(
                 p_lines = p.get("lines", "unknown")
                 p_syms = ", ".join(p.get("symbols", []))
                 pdf.cell(15)
-                pdf.multi_cell(0, 5, f"- File: {p_file} (Lines: {p_lines}) [Symbols: {p_syms}]")
+                pdf.multi_cell(0, 5, f"- File: {p_file} (Lines: {p_lines}) [Symbols: {p_syms}]", new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
         
     # 3. Diagrams Section
@@ -104,7 +104,7 @@ def compile_pdf_report(
             
         if not img_embedded:
             pdf.set_font("helvetica", "I", 10)
-            pdf.multi_cell(0, 6, f"UML Diagram URL: {class_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)")
+            pdf.multi_cell(0, 6, f"UML Diagram URL: {class_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")
         pdf.ln(10)
         
     return bytes(pdf.output())
