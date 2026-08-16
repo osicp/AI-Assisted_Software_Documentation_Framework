@@ -42,13 +42,8 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
       const defaultSequence = generateDefaultSequenceMarkup(classNames);
       setSequenceDiagramText(defaultSequence);
     } else {
-      // Offline fallback defaults
-      setClassDiagramText(
-        "@startuml\nclass OrderService {\n  +processOrder(id)\n  +cancelOrder()\n}\nclass PaymentProcessor {\n  +authorizePayment(token)\n}\n@enduml"
-      );
-      setSequenceDiagramText(
-        "@startuml\nactor User\nUser -> OrderService : processOrder(101)\nOrderService -> PaymentProcessor : authorizePayment(\"tkn_val\")\n@enduml"
-      );
+      setClassDiagramText('');
+      setSequenceDiagramText('');
     }
   }, [astSymbols]);
 
@@ -151,6 +146,33 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
       message: arrow[3]
     }));
   };
+
+  if (!astSymbols || astSymbols.length === 0) {
+    return (
+      <div className="space-y-8 animate-[fadeIn_0.5s_ease-out] select-none">
+        <div className="border-b border-borderLine pb-4">
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
+            UML Canvas & Consistency Auditor
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Generate UML structural and behavioral diagrams directly from your codebase AST symbols and audit their consistency.
+          </p>
+        </div>
+
+        <div className="glass rounded-xl p-8 border border-borderLine flex flex-col items-center justify-center text-center space-y-4 h-96">
+          <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-amber-400" />
+          </div>
+          <div className="space-y-2 max-w-md">
+            <h3 className="text-sm font-bold text-slate-200">No Codebase Ingested</h3>
+            <p className="text-xs text-slate-400 leading-relaxed font-sans">
+              Please go to the <strong>Ingestion Hub</strong> tab, upload and index a codebase ZIP archive to compile AST symbols before rendering design diagrams or auditing architectural consistency.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const classTree = parseClassTree();
   const sequenceTrace = parseSequenceTrace();
