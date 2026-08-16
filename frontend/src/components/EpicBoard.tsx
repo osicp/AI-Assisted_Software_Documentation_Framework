@@ -9,7 +9,9 @@ import {
   Loader2, 
   ArrowRight, 
   ShieldCheck, 
-  AlertTriangle 
+  AlertTriangle,
+  FileUp,
+  Trash2
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { ASTSymbol, UserStory, AuditReport } from '../lib/types';
@@ -38,10 +40,16 @@ export default function EpicBoard({
   setUserStories,
   classDiagramUrl,
   sequenceDiagramUrl
-}: EpicBoardProps) {
+ }: EpicBoardProps) {
   const [sprintGoal, setSprintGoal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCompilingPdf, setIsCompilingPdf] = useState(false);
+
+  // Requirements document ingestion states
+  const [showReqUpload, setShowReqUpload] = useState(false);
+  const [reqDocText, setReqDocText] = useState('');
+  const [reqDocFileName, setReqDocFileName] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   // Kanban column placements (Todo, In Progress, Testing, Done)
   // We maintain a map of story IDs to columns locally
@@ -83,6 +91,23 @@ export default function EpicBoard({
     }));
   };
 
+  const handleFileSelection = (file: File) => {
+    if (!file) return;
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'txt' && extension !== 'md') {
+      alert("Invalid file format. Please upload only plain text (.txt) or Markdown (.md) documents.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      setReqDocText(text);
+      setReqDocFileName(file.name);
+    };
+    reader.readAsText(file);
+  };
+
   const handleGenerateBacklog = async () => {
     if (!projectId) {
       alert("Please select or create a project first.");
@@ -94,7 +119,7 @@ export default function EpicBoard({
         projectId,
         sprintGoal,
         astSymbols,
-        ''
+        reqDocText
       ) as any;
       
       let stories: UserStory[] = [];
@@ -198,10 +223,23 @@ export default function EpicBoard({
         
         {/* Sprint Goal Ingestion */}
         <div className="lg:col-span-2 glass rounded-xl p-5 border border-borderLine">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-            <Kanban className="w-3.5 h-3.5 text-blue-400" />
-            <span>Sprint Goal Configuration</span>
-          </h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Kanban className="w-3.5 h-3.5 text-blue-400" />
+              <span>Sprint Goal Configuration</span>
+            </h3>
+            <button
+              onClick={() => setShowReqUpload(!showReqUpload)}
+              className={`flex items-center gap-1 px-2.5 py-1 text-[10px] uppercase font-bold rounded transition-all border ${
+                showReqUpload 
+                  ? 'bg-blue-600/20 text-blue-400 border-blue-500/30' 
+                  : 'bg-slate-800 text-slate-400 border-borderLine hover:text-slate-300'
+              }`}
+            >
+              <FileUp className="w-3 h-3" />
+              <span>{showReqUpload ? 'Hide Upload' : 'Requirements File'}</span>
+            </button>
+          </div>
           <div className="flex gap-4">
             <input
               type="text"
@@ -224,6 +262,68 @@ export default function EpicBoard({
               <AlertTriangle className="w-3 h-3" />
               <span>Please ingest a codebase ZIP in Ingestion Hub to enable backlog generation from AST symbols.</span>
             </p>
+          )}
+
+          {showReqUpload && (
+            <div className="mt-4 border-t border-borderLine/50 pt-4 animate-[fadeIn_0.3s_ease-out]">
+              {!reqDocText ? (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files[0];
+                    handleFileSelection(file);
+                  }}
+                  className={`border-2 border-dashed rounded-lg p-5 flex flex-col items-center justify-center cursor-pointer transition-all ${
+                    isDragging 
+                      ? 'border-blue-500 bg-blue-500/5' 
+                      : 'border-borderLine hover:border-slate-500 hover:bg-slate-900/50'
+                  }`}
+                  onClick={() => document.getElementById('req-file-input')?.click()}
+                >
+                  <input
+                    id="req-file-input"
+                    type="file"
+                    accept=".txt,.md"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileSelection(file);
+                    }}
+                  />
+                  <FileUp className={`w-8 h-8 mb-2 ${isDragging ? 'text-blue-400 animate-bounce' : 'text-slate-500'}`} />
+                  <span className="text-xs font-semibold text-slate-300 text-center">
+                    Drag & drop your requirements file here, or <span className="text-blue-400 underline">browse</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 mt-1">Accepts only .md or .txt files</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-slate-900/80 border border-borderLine rounded p-3 text-xs">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <span className="font-semibold text-slate-200 block truncate max-w-xs">{reqDocFileName}</span>
+                      <span className="text-[10px] text-slate-500">{(reqDocText.length / 1024).toFixed(1)} KB loaded</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setReqDocText('');
+                      setReqDocFileName('');
+                    }}
+                    className="p-1 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 rounded transition-all"
+                    title="Remove requirements document"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
