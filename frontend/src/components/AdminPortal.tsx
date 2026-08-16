@@ -135,10 +135,6 @@ export default function AdminPortal() {
                   System safety policies are hardcoded inside the container config environment (`scrummap.env`) and validated by the backend boundary threads.
                 </p>
               </div>
-              <div className="mt-4 pt-4 border-t border-slate-900/50">
-                <span className="text-[10px] uppercase font-bold text-slate-500">Security Score:</span>
-                <div className="text-2xl font-black text-emerald-400">100/100</div>
-              </div>
             </div>
 
             <div className="md:col-span-2 space-y-4 font-sans text-xs">
