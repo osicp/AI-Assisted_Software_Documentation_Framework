@@ -39,7 +39,7 @@ export default function EpicBoard({
   classDiagramUrl,
   sequenceDiagramUrl
 }: EpicBoardProps) {
-  const [sprintGoal, setSprintGoal] = useState('Build a secure order processing and payment transaction system');
+  const [sprintGoal, setSprintGoal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCompilingPdf, setIsCompilingPdf] = useState(false);
 
@@ -207,7 +207,7 @@ export default function EpicBoard({
               type="text"
               value={sprintGoal}
               onChange={(e) => setSprintGoal(e.target.value)}
-              placeholder="e.g. Build authentication gateway and database endpoints"
+              placeholder="Build a secure order processing and payment transaction system"
               className="flex-1 px-3 py-2 bg-slate-900 border border-borderLine text-slate-300 text-xs rounded focus:outline-none focus:border-blue-500 transition-all"
             />
             <button
