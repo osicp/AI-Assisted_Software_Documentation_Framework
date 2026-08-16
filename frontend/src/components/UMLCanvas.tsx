@@ -5,9 +5,10 @@ import { ASTSymbol } from '../lib/types';
 
 interface UMLCanvasProps {
   astSymbols?: ASTSymbol[];
+  setClassDiagramUrl?: (url: string | null) => void;
 }
 
-export default function UMLCanvas({ astSymbols = [] }: UMLCanvasProps) {
+export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl }: UMLCanvasProps) {
   // Editable text diagrams
   const [classDiagramText, setClassDiagramText] = useState('');
   const [sequenceDiagramText, setSequenceDiagramText] = useState('');
@@ -101,6 +102,9 @@ export default function UMLCanvas({ astSymbols = [] }: UMLCanvasProps) {
     try {
       const classRes = await api.renderUml(classDiagramText);
       setClassRenderUrl(classRes.render_url);
+      if (setClassDiagramUrl) {
+        setClassDiagramUrl(classRes.render_url);
+      }
 
       const seqRes = await api.renderUml(sequenceDiagramText);
       setSequenceRenderUrl(seqRes.render_url);

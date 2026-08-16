@@ -338,7 +338,10 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'uml' && (
-            <UMLCanvas astSymbols={astSymbols} />
+            <UMLCanvas 
+              astSymbols={astSymbols} 
+              setClassDiagramUrl={setClassDiagramUrl}
+            />
           )}
 
           {activeTab === 'backlog' && (
