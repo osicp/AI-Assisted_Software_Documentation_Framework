@@ -137,6 +137,11 @@ export const api = {
     return res.data;
   },
 
+  async getTelemetry(): Promise<any> {
+    const res = await apiClient.get('/api/metrics/telemetry');
+    return res.data;
+  },
+
   // Report Compiler (PDF Export)
   async downloadPdfReport(
     projectName: string,
