@@ -604,18 +604,32 @@ async def get_telemetry_metrics(project_id: Optional[str] = None):
         total_blocks = cursor.fetchone()[0]
         db_latency = (time.perf_counter() - db_start) * 1000.0  # in ms
         
-        # Get latest ZIP codebase upload for Purification Compression
+        # Check if project has an ingested codebase version
         if project_id:
             cursor.execute(
-                "SELECT payload FROM write_ahead_ledger WHERE transaction_type = 'ZIP_CODEBASE_UPLOAD' AND project_id = ? ORDER BY id DESC LIMIT 1",
+                "SELECT COUNT(*) FROM codebase_versions WHERE project_id = ?",
                 (project_id,)
             )
+            has_codebase = cursor.fetchone()[0] > 0
         else:
-            cursor.execute(
-                "SELECT payload FROM write_ahead_ledger WHERE transaction_type = 'ZIP_CODEBASE_UPLOAD' ORDER BY id DESC LIMIT 1"
-            )
-        zip_row = cursor.fetchone()
-        compression_percent = 38.2  # default fallback
+            cursor.execute("SELECT COUNT(*) FROM codebase_versions")
+            has_codebase = cursor.fetchone()[0] > 0
+
+        # Get latest ZIP codebase upload for Purification Compression
+        zip_row = None
+        if has_codebase:
+            if project_id:
+                cursor.execute(
+                    "SELECT payload FROM write_ahead_ledger WHERE transaction_type = 'ZIP_CODEBASE_UPLOAD' AND project_id = ? ORDER BY id DESC LIMIT 1",
+                    (project_id,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT payload FROM write_ahead_ledger WHERE transaction_type = 'ZIP_CODEBASE_UPLOAD' ORDER BY id DESC LIMIT 1"
+                )
+            zip_row = cursor.fetchone()
+            
+        compression_percent = 38.2 if has_codebase else 0.0
         if zip_row:
             try:
                 payload_data = json.loads(zip_row[0])
@@ -657,7 +671,7 @@ async def get_telemetry_metrics(project_id: Optional[str] = None):
         v_tax = round(corrective_prompts / max(1, prompt_iterations), 1) if prompt_iterations > 0 else 0.0
         
         # Context Caching Savings
-        context_savings = 79.0 + (total_blocks % 5) * 0.2
+        context_savings = (79.0 + (total_blocks % 5) * 0.2) if has_codebase else 0.0
         
         # Git diff distances (D_edit)
         if project_id:
