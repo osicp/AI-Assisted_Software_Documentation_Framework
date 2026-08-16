@@ -367,7 +367,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'metrics' && (
-            <PerformanceDashboard />
+            <PerformanceDashboard projectId={selectedProject?.id} />
           )}
 
           {activeTab === 'admin' && (

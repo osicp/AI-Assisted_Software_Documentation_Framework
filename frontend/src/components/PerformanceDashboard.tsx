@@ -2,15 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Activity, Cpu, Percent, BarChart3, HelpCircle, HardDrive, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 
-export default function PerformanceDashboard() {
+interface PerformanceDashboardProps {
+  projectId?: string;
+}
+
+export default function PerformanceDashboard({ projectId }: PerformanceDashboardProps) {
   const [telemetry, setTelemetry] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     const fetchTelemetry = async () => {
+      setIsLoading(true);
       try {
-        const data = await api.getTelemetry();
+        const data = await api.getTelemetry(projectId);
         if (active) {
           setTelemetry(data);
         }
@@ -26,7 +31,7 @@ export default function PerformanceDashboard() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [projectId]);
 
   if (isLoading) {
     return (

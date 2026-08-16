@@ -589,7 +589,7 @@ async def download_project_stubs(payload: StubsDownloadRequest):
     )
 
 @app.get("/api/metrics/telemetry")
-async def get_telemetry_metrics():
+async def get_telemetry_metrics(project_id: Optional[str] = None):
     import time
     
     conn = get_db_connection()
@@ -602,9 +602,15 @@ async def get_telemetry_metrics():
         db_latency = (time.perf_counter() - db_start) * 1000.0  # in ms
         
         # Get latest ZIP codebase upload for Purification Compression
-        cursor.execute(
-            "SELECT payload FROM write_ahead_ledger WHERE transaction_type = 'ZIP_CODEBASE_UPLOAD' ORDER BY id DESC LIMIT 1"
-        )
+        if project_id:
+            cursor.execute(
+                "SELECT payload FROM write_ahead_ledger WHERE transaction_type = 'ZIP_CODEBASE_UPLOAD' AND project_id = ? ORDER BY id DESC LIMIT 1",
+                (project_id,)
+            )
+        else:
+            cursor.execute(
+                "SELECT payload FROM write_ahead_ledger WHERE transaction_type = 'ZIP_CODEBASE_UPLOAD' ORDER BY id DESC LIMIT 1"
+            )
         zip_row = cursor.fetchone()
         compression_percent = 38.2  # default fallback
         if zip_row:
@@ -618,18 +624,30 @@ async def get_telemetry_metrics():
                 pass
                 
         # Count Backlog Generations for Prompt Iterations (I_p)
-        cursor.execute(
-            "SELECT COUNT(*) FROM write_ahead_ledger WHERE transaction_type = 'BACKLOG_GENERATION'"
-        )
+        if project_id:
+            cursor.execute(
+                "SELECT COUNT(*) FROM write_ahead_ledger WHERE transaction_type = 'BACKLOG_GENERATION' AND project_id = ?",
+                (project_id,)
+            )
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM write_ahead_ledger WHERE transaction_type = 'BACKLOG_GENERATION'"
+            )
         prompt_iterations = cursor.fetchone()[0]
         
         # Calculate Corrective Prompts (C_prompts)
         corrective_prompts = max(0, prompt_iterations - 1)
         
         # Count Validation Failures (F_val)
-        cursor.execute(
-            "SELECT COUNT(*) FROM write_ahead_ledger WHERE payload LIKE '%\"status\": \"FAILED\"%'"
-        )
+        if project_id:
+            cursor.execute(
+                "SELECT COUNT(*) FROM write_ahead_ledger WHERE payload LIKE '%\"status\": \"FAILED\"%' AND project_id = ?",
+                (project_id,)
+            )
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM write_ahead_ledger WHERE payload LIKE '%\"status\": \"FAILED\"%'"
+            )
         validation_failures = cursor.fetchone()[0]
         
         # Calculate Verification Tax (V_tax)
@@ -639,9 +657,12 @@ async def get_telemetry_metrics():
         context_savings = 79.0 + (total_blocks % 5) * 0.2
         
         # Git diff distances (D_edit)
-        cursor.execute("SELECT COUNT(*) FROM backlog_items")
+        if project_id:
+            cursor.execute("SELECT COUNT(*) FROM backlog_items WHERE project_id = ?", (project_id,))
+        else:
+            cursor.execute("SELECT COUNT(*) FROM backlog_items")
         stories_count = cursor.fetchone()[0]
-        git_diff_lines = stories_count * 8 if stories_count > 0 else 8
+        git_diff_lines = stories_count * 8 if stories_count > 0 else 0
         
     except Exception as e:
         # Default fallbacks if query fails

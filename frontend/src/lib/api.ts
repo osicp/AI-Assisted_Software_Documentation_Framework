@@ -137,8 +137,9 @@ export const api = {
     return res.data;
   },
 
-  async getTelemetry(): Promise<any> {
-    const res = await apiClient.get('/api/metrics/telemetry');
+  async getTelemetry(projectId?: string): Promise<any> {
+    const params = projectId ? { project_id: projectId } : {};
+    const res = await apiClient.get('/api/metrics/telemetry', { params });
     return res.data;
   },
 
