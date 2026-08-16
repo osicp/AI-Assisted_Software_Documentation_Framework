@@ -40,7 +40,7 @@ export default function PerformanceDashboard() {
   const kpis = [
     {
       name: 'DB WAL Write Latency',
-      value: telemetry?.db_latency || '2.8 ms',
+      value: telemetry ? telemetry.db_latency : '2.8 ms',
       target: '< 5 ms',
       desc: 'Database transaction write latency in non-blocking WAL mode.',
       status: 'optimal',
@@ -50,7 +50,7 @@ export default function PerformanceDashboard() {
     },
     {
       name: 'Purification Compression',
-      value: telemetry?.purification_compression || '38.2%',
+      value: telemetry ? telemetry.purification_compression : '38.2%',
       target: '~ 35%',
       desc: 'File size reduction after structural comments and logging purification.',
       status: 'optimal',
@@ -60,7 +60,7 @@ export default function PerformanceDashboard() {
     },
     {
       name: 'Context Caching Savings',
-      value: telemetry?.context_savings || '79.0%',
+      value: telemetry ? telemetry.context_savings : '79.0%',
       target: '79% target',
       desc: 'LLM token cost savings using Gemini 2.5 context caching proxies.',
       status: 'optimal',
@@ -70,7 +70,7 @@ export default function PerformanceDashboard() {
     },
     {
       name: 'Verification Tax (V_tax)',
-      value: telemetry?.verification_tax || '1.8',
+      value: telemetry ? telemetry.verification_tax : '1.8',
       target: '< 5.0',
       desc: 'Relative human effort rating (prompt corrections per task).',
       status: 'optimal',
@@ -81,10 +81,10 @@ export default function PerformanceDashboard() {
   ];
 
   const telemetryMetrics = [
-    { label: 'Prompt Iterations (I_p)', value: telemetry?.prompt_iterations || '2', target: 'Max 5', percent: telemetry?.percent_iterations || 40 },
-    { label: 'Corrective Prompts (C_prompts)', value: telemetry?.corrective_prompts || '1', target: 'Max 3', percent: telemetry?.percent_corrective || 33 },
-    { label: 'Git Diff Distances (D_edit)', value: telemetry?.git_diff_lines || '8 lines', target: 'Average 15', percent: telemetry?.percent_git || 53 },
-    { label: 'Validation Failures (F_val)', value: telemetry?.validation_failures || '0', target: '0', percent: telemetry?.percent_validation || 0 }
+    { label: 'Prompt Iterations (I_p)', value: telemetry ? telemetry.prompt_iterations : '2', target: 'Max 5', percent: telemetry ? telemetry.percent_iterations : 40 },
+    { label: 'Corrective Prompts (C_prompts)', value: telemetry ? telemetry.corrective_prompts : '1', target: 'Max 3', percent: telemetry ? telemetry.percent_corrective : 33 },
+    { label: 'Git Diff Distances (D_edit)', value: telemetry ? telemetry.git_diff_lines : '8 lines', target: 'Average 15', percent: telemetry ? telemetry.percent_git : 53 },
+    { label: 'Validation Failures (F_val)', value: telemetry ? telemetry.validation_failures : '0', target: '0', percent: telemetry ? telemetry.percent_validation : 0 }
   ];
 
   const purificationPercent = parseFloat(telemetry?.purification_compression || '38.2');
