@@ -69,11 +69,13 @@ export const api = {
 
   // Backlog compilation
   async generateBacklog(
+    projectId: string,
     sprintGoal: string,
     astSymbols: ASTSymbol[],
     refinedRequirements?: string
   ): Promise<{ user_stories: UserStory[] }> {
     const res = await apiClient.post('/api/backlog/generate', {
+      project_id: projectId,
       sprint_goal: sprintGoal,
       ast_symbols: astSymbols,
       refined_requirements: refinedRequirements || '',

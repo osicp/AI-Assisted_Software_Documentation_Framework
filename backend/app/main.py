@@ -58,6 +58,7 @@ class UMLVerifyRequest(BaseModel):
     sequence_diagram: str
 
 class BacklogGenerateRequest(BaseModel):
+    project_id: str
     sprint_goal: str
     ast_symbols: List[Dict[str, Any]]
     refined_requirements: Optional[str] = None
@@ -459,13 +460,15 @@ async def generate_backlog(
         commit_transaction_to_ledger(
             operator_id=operator_id,
             transaction_type="BACKLOG_GENERATION",
-            payload_data={"sprint_goal": payload.sprint_goal, "epics_count": len(backlog_res.get("epics", [])), "status": "SUCCESS"}
+            payload_data={"sprint_goal": payload.sprint_goal, "epics_count": len(backlog_res.get("epics", [])), "status": "SUCCESS"},
+            project_id=payload.project_id
         )
     except Exception as e:
         commit_transaction_to_ledger(
             operator_id=operator_id,
             transaction_type="BACKLOG_GENERATION",
-            payload_data={"sprint_goal": payload.sprint_goal, "status": "FAILED", "error": str(e)}
+            payload_data={"sprint_goal": payload.sprint_goal, "status": "FAILED", "error": str(e)},
+            project_id=payload.project_id
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -90,7 +90,12 @@ export default function EpicBoard({
     }
     setIsGenerating(true);
     try {
-      const res = await api.generateBacklog(sprintGoal, astSymbols) as any;
+      const res = await api.generateBacklog(
+        projectId,
+        sprintGoal,
+        astSymbols,
+        ''
+      ) as any;
       
       let stories: UserStory[] = [];
       if (res) {
