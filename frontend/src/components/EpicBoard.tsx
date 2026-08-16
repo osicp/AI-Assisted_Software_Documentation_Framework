@@ -364,7 +364,7 @@ export default function EpicBoard({
                         style={{ left: startOffset, width: durationWidth }}
                         className="absolute top-1 bottom-1 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 rounded border border-blue-500/30 flex items-center px-2 text-[8px] font-sans text-white truncate font-bold shadow-[0_0_10px_rgba(59,130,246,0.2)]"
                       >
-                        Sprint W{weekNum} (Day {Math.floor(startDay) + 1}-{Math.ceil(endDayVal)}): {story.role}
+                        Sprint W{weekNum} (Day {Math.floor(startDay) + 1}-{Math.ceil(endDayVal)}): {story.action}
                       </div>
                     </div>
                   </div>
