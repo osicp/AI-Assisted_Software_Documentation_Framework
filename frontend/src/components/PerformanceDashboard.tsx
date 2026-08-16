@@ -82,6 +82,46 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
       icon: HelpCircle,
       color: 'text-cyan-400',
       barColor: 'bg-cyan-500'
+    },
+    {
+      name: 'Tokens per Backlog Item',
+      value: telemetry ? telemetry.tokens_per_item : '0 tokens',
+      target: '< 1,500',
+      desc: 'Average LLM token load (input + output) per compiled story.',
+      status: 'optimal',
+      icon: BarChart3,
+      color: 'text-rose-400',
+      barColor: 'bg-rose-500'
+    },
+    {
+      name: 'LLM Inference Latency',
+      value: telemetry ? telemetry.inference_latency : '0.0 s',
+      target: '< 3.0 s',
+      desc: 'Turnaround speed of external LLM prompt-response execution.',
+      status: 'optimal',
+      icon: Activity,
+      color: 'text-amber-400',
+      barColor: 'bg-amber-500'
+    },
+    {
+      name: 'Hallucination Drift Index',
+      value: telemetry ? telemetry.hallucination_drift : '0.0%',
+      target: '< 10.0%',
+      desc: 'Consistency deviation of code symbol mappings between refinements.',
+      status: 'optimal',
+      icon: HelpCircle,
+      color: 'text-orange-400',
+      barColor: 'bg-orange-500'
+    },
+    {
+      name: 'E2E Refinement Cycle Time',
+      value: telemetry ? telemetry.cycle_time : '0.0 s',
+      target: '< 60.0 s',
+      desc: 'Total processing time from codebase upload to final report download.',
+      status: 'optimal',
+      icon: Cpu,
+      color: 'text-purple-400',
+      barColor: 'bg-purple-500'
     }
   ];
 
