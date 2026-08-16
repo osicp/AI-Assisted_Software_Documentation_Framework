@@ -593,6 +593,23 @@ async def download_project_stubs(payload: StubsDownloadRequest):
 
 @app.get("/api/metrics/telemetry")
 async def get_telemetry_metrics(project_id: Optional[str] = None):
+    # If no project_id is provided, return clean default zeroed telemetry to avoid global leakages
+    if not project_id or project_id == "undefined" or project_id.strip() == "":
+        return {
+            "db_latency": "0.0 ms",
+            "purification_compression": "0.0%",
+            "context_savings": "0.0%",
+            "verification_tax": "0.0",
+            "prompt_iterations": "0",
+            "corrective_prompts": "0",
+            "git_diff_lines": "0 lines",
+            "validation_failures": "0",
+            "percent_iterations": 0,
+            "percent_corrective": 0,
+            "percent_git": 0,
+            "percent_validation": 0
+        }
+
     import time
     
     conn = get_db_connection()
