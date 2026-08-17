@@ -524,7 +524,9 @@ async def generate_backlog(
             
             # 3. Insert each story
             for epic in backlog_res.get("epics", []):
+                epic_title = epic.get("title", "Core Epics")
                 for story in epic.get("user_stories", []):
+                    story["epic_title"] = epic_title
                     cursor.execute(
                         """
                         INSERT INTO backlog_items (
@@ -538,7 +540,7 @@ async def generate_backlog(
                             payload.project_id,
                             version_id,
                             story.get("title", ""),
-                            story.get("description", ""),
+                            f"[{epic_title}] {story.get('description', '')}",
                             story.get("actor_role", ""),
                             story.get("snl_requirements", ""),
                             float(story.get("hie_story_points", 0)),

@@ -129,6 +129,12 @@ export default function EpicBoard({
         } else if (Array.isArray(res.epics)) {
           res.epics.forEach((epic: any) => {
             if (epic && Array.isArray(epic.user_stories)) {
+              const epicTitle = epic.title || "Core Epic";
+              epic.user_stories.forEach((story: any) => {
+                if (story) {
+                  story.epic_title = story.epic_title || epicTitle;
+                }
+              });
               stories = stories.concat(epic.user_stories);
             }
           });

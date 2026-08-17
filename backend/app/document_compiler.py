@@ -47,7 +47,19 @@ def compile_pdf_report(
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
     
+    current_epic = None
     for story in user_stories:
+        epic_title = story.get("epic_title")
+        if epic_title and epic_title != current_epic:
+            current_epic = epic_title
+            pdf.ln(4)
+            pdf.set_font("helvetica", "B", 12)
+            pdf.set_text_color(30, 41, 59) # Slate 800 dark color for headers
+            pdf.cell(0, 8, f"Epic: {current_epic}", new_x="LMARGIN", new_y="NEXT")
+            pdf.line(10, pdf.get_y(), 120, pdf.get_y())
+            pdf.set_text_color(0, 0, 0) # Reset back to default black
+            pdf.ln(2)
+
         sid = story.get("id", "STORY-XX")
         role = story.get("role", "User")
         action = story.get("action", "perform action")

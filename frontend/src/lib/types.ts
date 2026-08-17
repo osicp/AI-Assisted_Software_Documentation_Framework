@@ -12,6 +12,7 @@ export interface CodePointer {
 
 export interface UserStory {
   id: string;
+  epic_title?: string;
   role: string;
   action: string;
   benefit: string;
