@@ -921,7 +921,7 @@ async def get_telemetry_metrics(project_id: Optional[str] = None):
         "validation_failures": str(validation_failures),
         "percent_iterations": min(100, int((prompt_iterations / 5.0) * 100)),
         "percent_corrective": min(100, int((corrective_prompts / 3.0) * 100)),
-        "percent_git": min(100, int((git_diff_lines / 15.0) * 100)),
+        "percent_git": min(100, int((git_diff_lines / 50.0) * 100)),
         "percent_validation": min(100, int((validation_failures / 1.0) * 100)),
         "tokens_per_item": tokens_per_item,
         "inference_latency": inference_latency,

@@ -138,7 +138,7 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
   const telemetryMetrics = [
     { label: 'Prompt Iterations (I_p)', value: telemetry ? telemetry.prompt_iterations : '2', target: 'Max 5', percent: telemetry ? telemetry.percent_iterations : 40 },
     { label: 'Corrective Prompts (C_prompts)', value: telemetry ? telemetry.corrective_prompts : '1', target: 'Max 3', percent: telemetry ? telemetry.percent_corrective : 33 },
-    { label: 'Git Diff Distances (D_edit)', value: telemetry ? telemetry.git_diff_lines : '8 lines', target: 'Average 15', percent: telemetry ? telemetry.percent_git : 53 },
+    { label: 'Git Diff Distances (D_edit)', value: telemetry ? telemetry.git_diff_lines : '8 lines', target: 'Average 50', percent: telemetry ? telemetry.percent_git : 53 },
     { label: 'Validation Failures (F_val)', value: telemetry ? telemetry.validation_failures : '0', target: '0', percent: telemetry ? telemetry.percent_validation : 0 }
   ];
 
