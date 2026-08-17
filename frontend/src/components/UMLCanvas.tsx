@@ -7,15 +7,33 @@ interface UMLCanvasProps {
   astSymbols?: ASTSymbol[];
   setClassDiagramUrl?: (url: string | null) => void;
   setSequenceDiagramUrl?: (url: string | null) => void;
+  classDiagramText: string;
+  setClassDiagramText: (val: string) => void;
+  sequenceDiagramText: string;
+  setSequenceDiagramText: (val: string) => void;
+  tobeClassText: string;
+  setTobeClassText: (val: string) => void;
+  tobeSeqText: string;
+  setTobeSeqText: (val: string) => void;
+  activeMode: 'asis' | 'tobe';
+  setActiveMode: (mode: 'asis' | 'tobe') => void;
 }
 
-export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequenceDiagramUrl }: UMLCanvasProps) {
-  // Editable text diagrams
-  const [classDiagramText, setClassDiagramText] = useState('');
-  const [sequenceDiagramText, setSequenceDiagramText] = useState('');
-  const [tobeClassText, setTobeClassText] = useState('');
-  const [tobeSeqText, setTobeSeqText] = useState('');
-  const [activeMode, setActiveMode] = useState<'asis' | 'tobe'>('asis');
+export default function UMLCanvas({ 
+  astSymbols = [], 
+  setClassDiagramUrl, 
+  setSequenceDiagramUrl,
+  classDiagramText,
+  setClassDiagramText,
+  sequenceDiagramText,
+  setSequenceDiagramText,
+  tobeClassText,
+  setTobeClassText,
+  tobeSeqText,
+  setTobeSeqText,
+  activeMode,
+  setActiveMode
+}: UMLCanvasProps) {
 
   // Reconciliation report states
   const [reconciliationReport, setReconciliationReport] = useState<{
@@ -40,104 +58,6 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
     scanned_messages: number;
   } | null>(null);
   const [isAuditing, setIsAuditing] = useState(false);
-
-  // Auto-generate class diagram on mount/symbols change
-  useEffect(() => {
-    if (astSymbols && astSymbols.length > 0) {
-      const generatedClass = generateClassDiagramMarkup(astSymbols);
-      setClassDiagramText(generatedClass);
-      
-      // Seed a default sequence diagram containing discovered classes for testing
-      const classNames = Array.from(new Set(astSymbols.filter(s => s.kind === 'class').map(s => s.name)));
-      const defaultSequence = generateDefaultSequenceMarkup(classNames);
-      setSequenceDiagramText(defaultSequence);
-
-      // Pre-seed To-Be diagrams with the As-Is base if empty
-      setTobeClassText(prev => {
-        if (prev) return prev;
-        const lines = generatedClass.split('\n');
-        // Insert standard planned class guidelines guide right before the @enduml tag
-        if (lines.length > 0 && lines[lines.length - 1] === '@enduml') {
-          lines.splice(lines.length - 1, 0, 
-            "",
-            "  ' To-Be Architecture (Proposed green/dashed stereotyped additions)",
-            "  ' Example of a planned extension class:",
-            "  ' class PlannedService <<Planned>> #line:green;line.dashed;back:lightgreen {",
-            "  '   +executePlannedTask()",
-            "  ' }",
-            ""
-          );
-        }
-        return lines.join('\n');
-      });
-
-      setTobeSeqText(prev => {
-        if (prev) return prev;
-        const lines = defaultSequence.split('\n');
-        if (lines.length > 0 && lines[lines.length - 1] === '@enduml') {
-          lines.splice(lines.length - 1, 0,
-            "",
-            "  ' To-Be Architecture Sequence traces",
-            "  ' Example of sequence trace involving a planned class:",
-            "  ' participant PlannedService <<Planned>>",
-            "  ' OrderService -> PlannedService : executePlannedTask()",
-            ""
-          );
-        }
-        return lines.join('\n');
-      });
-    } else {
-      setClassDiagramText('');
-      setSequenceDiagramText('');
-      setTobeClassText('');
-      setTobeSeqText('');
-    }
-  }, [astSymbols]);
-
-  const generateClassDiagramMarkup = (symbols: ASTSymbol[]): string => {
-    const classes: { [key: string]: { methods: string[]; filename: string } } = {};
-    
-    symbols.forEach(sym => {
-      const path = sym.path || "";
-      const filename = path.split('/').pop() || "Codebase";
-      const scope = sym.scope;
-      const name = sym.name;
-      const kind = sym.kind;
-      
-      if (kind === 'class') {
-        classes[name] = { methods: [], filename };
-      } else if (['method', 'member', 'function'].includes(kind) && scope) {
-        if (!classes[scope]) {
-          classes[scope] = { methods: [], filename };
-        }
-        const sig = sym.signature || "()";
-        classes[scope].methods.push(`+${name}${sig}`);
-      }
-    });
-    
-    const lines = ["@startuml", "skinparam classAttributeIconSize 0"];
-    Object.entries(classes).forEach(([cName, cData]) => {
-      lines.push(`class ${cName} << ${cData.filename} >> {`);
-      cData.methods.forEach(m => lines.push(`  ${m}`));
-      lines.push("}");
-    });
-    lines.push("@enduml");
-    return lines.join('\n');
-  };
-
-  const generateDefaultSequenceMarkup = (classNames: string[]): string => {
-    const lines = ["@startuml", "actor User"];
-    if (classNames.length > 0) {
-      lines.push(`User -> ${classNames[0]} : initializeCall()`);
-      for (let i = 0; i < classNames.length - 1; i++) {
-        lines.push(`${classNames[i]} -> ${classNames[i+1]} : delegateOperation()`);
-      }
-    } else {
-      lines.push("User -> Controller : executeRequest()");
-    }
-    lines.push("@enduml");
-    return lines.join('\n');
-  };
 
   const getActiveClassText = () => activeMode === 'asis' ? classDiagramText : tobeClassText;
   const setActiveClassText = (val: string) => activeMode === 'asis' ? setClassDiagramText(val) : setTobeClassText(val);

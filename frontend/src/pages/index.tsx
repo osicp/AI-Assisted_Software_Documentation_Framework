@@ -17,6 +17,7 @@ import {
 
 import { Project, UserStory, ASTSymbol } from '../lib/types';
 import { api } from '../lib/api';
+import { generateClassDiagramMarkup, generateDefaultSequenceMarkup } from '../lib/uml_helpers';
 
 // Components imports
 import DropZone from '../components/DropZone';
@@ -52,6 +53,13 @@ export default function Dashboard() {
   const [classDiagramUrl, setClassDiagramUrl] = useState<string | null>(null);
   const [sequenceDiagramUrl, setSequenceDiagramUrl] = useState<string | null>(null);
 
+  // Lifted UML text markup states
+  const [classDiagramText, setClassDiagramText] = useState('');
+  const [sequenceDiagramText, setSequenceDiagramText] = useState('');
+  const [tobeClassText, setTobeClassText] = useState('');
+  const [tobeSeqText, setTobeSeqText] = useState('');
+  const [activeUmlMode, setActiveUmlMode] = useState<'asis' | 'tobe'>('asis');
+
   // Load initially
   useEffect(() => {
     // Load Saved Role Key if any
@@ -75,6 +83,51 @@ export default function Dashboard() {
     const interval = setInterval(verifyHealth, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Pre-seed diagrams at page-level when codebase AST changes
+  useEffect(() => {
+    if (astSymbols && astSymbols.length > 0) {
+      const generatedClass = generateClassDiagramMarkup(astSymbols);
+      setClassDiagramText(generatedClass);
+      
+      const classNames = Array.from(new Set(astSymbols.filter(s => s.kind === 'class').map(s => s.name)));
+      const defaultSequence = generateDefaultSequenceMarkup(classNames);
+      setSequenceDiagramText(defaultSequence);
+
+      // Seed To-Be diagrams
+      const classLines = generatedClass.split('\n');
+      if (classLines.length > 0 && classLines[classLines.length - 1] === '@enduml') {
+        classLines.splice(classLines.length - 1, 0, 
+          "",
+          "  ' To-Be Architecture (Proposed green/dashed stereotyped additions)",
+          "  ' Example of a planned extension class:",
+          "  ' class PlannedService <<Planned>> #line:green;line.dashed;back:lightgreen {",
+          "  '   +executePlannedTask()",
+          "  ' }",
+          ""
+        );
+      }
+      setTobeClassText(classLines.join('\n'));
+
+      const seqLines = defaultSequence.split('\n');
+      if (seqLines.length > 0 && seqLines[seqLines.length - 1] === '@enduml') {
+        seqLines.splice(seqLines.length - 1, 0,
+          "",
+          "  ' To-Be Architecture Sequence traces",
+          "  ' Example of sequence trace involving a planned class:",
+          "  ' participant PlannedService <<Planned>>",
+          "  ' OrderService -> PlannedService : executePlannedTask()",
+          ""
+        );
+      }
+      setTobeSeqText(seqLines.join('\n'));
+    } else {
+      setClassDiagramText('');
+      setSequenceDiagramText('');
+      setTobeClassText('');
+      setTobeSeqText('');
+    }
+  }, [astSymbols]);
 
   const loadProjects = async () => {
     try {
@@ -362,12 +415,21 @@ export default function Dashboard() {
               }}
             />
           )}
-
           {activeTab === 'uml' && (
             <UMLCanvas 
               astSymbols={astSymbols} 
               setClassDiagramUrl={setClassDiagramUrl}
               setSequenceDiagramUrl={setSequenceDiagramUrl}
+              classDiagramText={classDiagramText}
+              setClassDiagramText={setClassDiagramText}
+              sequenceDiagramText={sequenceDiagramText}
+              setSequenceDiagramText={setSequenceDiagramText}
+              tobeClassText={tobeClassText}
+              setTobeClassText={setTobeClassText}
+              tobeSeqText={tobeSeqText}
+              setTobeSeqText={setTobeSeqText}
+              activeMode={activeUmlMode}
+              setActiveMode={setActiveUmlMode}
             />
           )}
 
