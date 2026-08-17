@@ -114,14 +114,22 @@ export default function EpicBoard({
       alert("Please select or create a project first.");
       return;
     }
+    
+    const goalText = sprintGoal.trim();
+    const reqText = reqDocText.trim();
+    
+    if (!goalText && !reqText) {
+      alert("Please enter a Sprint Goal or upload a requirements file before generating the backlog.");
+      return;
+    }
+    
     setIsGenerating(true);
     try {
-      const finalGoal = sprintGoal.trim() || "Build a secure order processing and payment transaction system";
       const res = await api.generateBacklog(
         projectId,
-        finalGoal,
+        goalText || "ScrumMap Sprint backlog compilation",
         astSymbols,
-        reqDocText
+        reqText || undefined
       ) as any;
       
       let stories: UserStory[] = [];
@@ -254,7 +262,7 @@ export default function EpicBoard({
               type="text"
               value={sprintGoal}
               onChange={(e) => setSprintGoal(e.target.value)}
-              placeholder="Build a secure order processing and payment transaction system"
+              placeholder="Enter sprint goal description..."
               className="flex-1 px-3 py-2 bg-slate-900 border border-borderLine text-slate-300 text-xs rounded focus:outline-none focus:border-blue-500 transition-all"
             />
             <button
