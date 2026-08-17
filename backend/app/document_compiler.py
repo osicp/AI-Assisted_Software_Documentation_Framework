@@ -21,7 +21,8 @@ def compile_pdf_report(
     project_description: Optional[str],
     user_stories: List[Dict[str, Any]],
     class_diagram_url: Optional[str] = None,
-    sequence_diagram_url: Optional[str] = None
+    sequence_diagram_url: Optional[str] = None,
+    project_id: Optional[str] = None
 ) -> bytes:
     # Use triple-single quotes for docstring
     '''
@@ -31,6 +32,33 @@ def compile_pdf_report(
     pdf = ScrumMapPDF()
     pdf.alias_nb_pages()
     pdf.add_page()
+    
+    # Query cryptographic ledger block for this project
+    ledger_info = None
+    if project_id:
+        try:
+            from backend.app.ledger import get_db_connection
+            conn = get_db_connection()
+            # Enable row factory to read column names
+            import sqlite3
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, timestamp, operator_id, payload_hash, block_signature FROM write_ahead_ledger WHERE project_id = ? ORDER BY id DESC LIMIT 1",
+                (project_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                ledger_info = {
+                    "block_id": row["id"],
+                    "timestamp": row["timestamp"],
+                    "operator": row["operator_id"],
+                    "hash": row["payload_hash"],
+                    "signature": row["block_signature"]
+                }
+            conn.close()
+        except Exception:
+            pass
     
     # 1. Title Section
     pdf.set_font("helvetica", "B", 20)
@@ -112,6 +140,46 @@ def compile_pdf_report(
                 p_syms = ", ".join(p.get("symbols", []))
                 pdf.cell(15)
                 pdf.multi_cell(0, 5, f"- File: {p_file} (Lines: {p_lines}) [Symbols: {p_syms}]", new_x="LMARGIN", new_y="NEXT")
+                
+        # Ripple Risks & Side-Effects
+        risks = story.get("ripple_risks", []) or story.get("ripple_effects", [])
+        if isinstance(risks, str):
+            try:
+                import json
+                risks = json.loads(risks)
+            except Exception:
+                risks = [risks]
+        if risks and isinstance(risks, list):
+            pdf.cell(10)
+            pdf.set_font("helvetica", "B", 9)
+            pdf.set_text_color(180, 83, 9) # Amber 700 risk color
+            pdf.cell(0, 6, "Ripple Risks & Side-Effects:", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_text_color(0, 0, 0) # Reset back to default black
+            pdf.set_font("helvetica", "", 9)
+            for r in risks:
+                pdf.cell(15)
+                pdf.multi_cell(0, 5, f"- {r}", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(5)
+        
+    # 2.5 Audit Ledger Verification Block
+    if ledger_info:
+        pdf.ln(5)
+        pdf.set_font("helvetica", "B", 10)
+        pdf.set_text_color(30, 41, 59) # Slate 800 dark color for headers
+        pdf.cell(0, 8, "Cryptographic Ledger Audit Verification Block", new_x="LMARGIN", new_y="NEXT")
+        pdf.line(10, pdf.get_y(), 120, pdf.get_y())
+        pdf.set_text_color(0, 0, 0) # Reset back to default black
+        pdf.ln(2)
+        pdf.set_font("helvetica", "", 8)
+        
+        info_txt = (
+            f"Ledger Transaction ID: block_{ledger_info['block_id']}\n"
+            f"Commit Timestamp: {ledger_info['timestamp']} UTC\n"
+            f"Authorized Operator: {ledger_info['operator']}\n"
+            f"Payload SHA-256 Hash: {ledger_info['hash']}\n"
+            f"Block Signature (HMAC): {ledger_info['signature']}"
+        )
+        pdf.multi_cell(0, 4, info_txt, border=1, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
         
     # 3. Diagrams Section
