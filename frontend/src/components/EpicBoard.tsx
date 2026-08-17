@@ -116,9 +116,10 @@ export default function EpicBoard({
     }
     setIsGenerating(true);
     try {
+      const finalGoal = sprintGoal.trim() || "Build a secure order processing and payment transaction system";
       const res = await api.generateBacklog(
         projectId,
-        sprintGoal,
+        finalGoal,
         astSymbols,
         reqDocText
       ) as any;
