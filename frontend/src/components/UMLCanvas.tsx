@@ -13,6 +13,16 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
   // Editable text diagrams
   const [classDiagramText, setClassDiagramText] = useState('');
   const [sequenceDiagramText, setSequenceDiagramText] = useState('');
+  const [tobeClassText, setTobeClassText] = useState('');
+  const [tobeSeqText, setTobeSeqText] = useState('');
+  const [activeMode, setActiveMode] = useState<'asis' | 'tobe'>('asis');
+
+  // Reconciliation report states
+  const [reconciliationReport, setReconciliationReport] = useState<{
+    reconciled: string[];
+    pending: string[];
+  } | null>(null);
+  const [showReconciliation, setShowReconciliation] = useState(false);
 
   // Render states
   const [classRenderUrl, setClassRenderUrl] = useState<string | null>(null);
@@ -41,9 +51,46 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
       const classNames = Array.from(new Set(astSymbols.filter(s => s.kind === 'class').map(s => s.name)));
       const defaultSequence = generateDefaultSequenceMarkup(classNames);
       setSequenceDiagramText(defaultSequence);
+
+      // Pre-seed To-Be diagrams with the As-Is base if empty
+      setTobeClassText(prev => {
+        if (prev) return prev;
+        const lines = generatedClass.split('\n');
+        // Insert standard planned class guidelines guide right before the @enduml tag
+        if (lines.length > 0 && lines[lines.length - 1] === '@enduml') {
+          lines.splice(lines.length - 1, 0, 
+            "",
+            "  ' To-Be Architecture (Proposed green/dashed stereotyped additions)",
+            "  ' Example of a planned extension class:",
+            "  ' class PlannedService <<Planned>> #line:green;line.dashed;back:lightgreen {",
+            "  '   +executePlannedTask()",
+            "  ' }",
+            ""
+          );
+        }
+        return lines.join('\n');
+      });
+
+      setTobeSeqText(prev => {
+        if (prev) return prev;
+        const lines = defaultSequence.split('\n');
+        if (lines.length > 0 && lines[lines.length - 1] === '@enduml') {
+          lines.splice(lines.length - 1, 0,
+            "",
+            "  ' To-Be Architecture Sequence traces",
+            "  ' Example of sequence trace involving a planned class:",
+            "  ' participant PlannedService <<Planned>>",
+            "  ' OrderService -> PlannedService : executePlannedTask()",
+            ""
+          );
+        }
+        return lines.join('\n');
+      });
     } else {
       setClassDiagramText('');
       setSequenceDiagramText('');
+      setTobeClassText('');
+      setTobeSeqText('');
     }
   }, [astSymbols]);
 
@@ -92,17 +139,26 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
     return lines.join('\n');
   };
 
+  const getActiveClassText = () => activeMode === 'asis' ? classDiagramText : tobeClassText;
+  const setActiveClassText = (val: string) => activeMode === 'asis' ? setClassDiagramText(val) : setTobeClassText(val);
+
+  const getActiveSeqText = () => activeMode === 'asis' ? sequenceDiagramText : tobeSeqText;
+  const setActiveSeqText = (val: string) => activeMode === 'asis' ? setSequenceDiagramText(val) : setTobeSeqText(val);
+
   const handleRender = async () => {
     setIsRendering(true);
     setAuditResult(null);
     try {
-      const classRes = await api.renderUml(classDiagramText);
+      const activeClass = getActiveClassText();
+      const activeSeq = getActiveSeqText();
+
+      const classRes = await api.renderUml(activeClass);
       setClassRenderUrl(classRes.render_url);
       if (setClassDiagramUrl) {
         setClassDiagramUrl(classRes.render_url);
       }
 
-      const seqRes = await api.renderUml(sequenceDiagramText);
+      const seqRes = await api.renderUml(activeSeq);
       setSequenceRenderUrl(seqRes.render_url);
       if (setSequenceDiagramUrl) {
         setSequenceDiagramUrl(seqRes.render_url);
@@ -118,7 +174,9 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
   const handleVerify = async () => {
     setIsAuditing(true);
     try {
-      const res = await api.verifyUml(classDiagramText, sequenceDiagramText);
+      const activeClass = getActiveClassText();
+      const activeSeq = getActiveSeqText();
+      const res = await api.verifyUml(activeClass, activeSeq);
       setAuditResult(res);
     } catch (e) {
       console.error(e);
@@ -130,7 +188,8 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
 
   // Local parser helpers to display class tree and sequence messages list
   const parseClassTree = () => {
-    const classBlocks = Array.from(classDiagramText.matchAll(/(?:class|interface)\s+(\w+)(?:\s+<<[\s\S]*?>>)?\s*(?:\{([\s\S]*?)\})?/g));
+    const activeText = getActiveClassText();
+    const classBlocks = Array.from(activeText.matchAll(/(?:class|interface)\s+(\w+)(?:\s+<<[\s\S]*?>>)?\s*(?:\{([\s\S]*?)\})?/g));
     return classBlocks.map(block => {
       const className = block[1];
       const content = block[2] || "";
@@ -140,11 +199,50 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
   };
 
   const parseSequenceTrace = () => {
-    return Array.from(sequenceDiagramText.matchAll(/(\w+)\s*-(?:-)?(?:>|x)\s*(\w+)\s*:\s*(.*)/g)).map(arrow => ({
+    const activeSeq = getActiveSeqText();
+    return Array.from(activeSeq.matchAll(/(\w+)\s*-(?:-)?(?:>|x)\s*(\w+)\s*:\s*(.*)/g)).map(arrow => ({
       sender: arrow[1],
       receiver: arrow[2],
       message: arrow[3]
     }));
+  };
+
+  const runReconciliation = () => {
+    // Parse tobeClassText to find all class ClassName <<Planned>>
+    const plannedRegex = /(?:class|interface)\s+(\w+)\s+<<\s*Planned\s*>>/gi;
+    const foundPlannedClasses: string[] = [];
+    let match;
+    while ((match = plannedRegex.exec(tobeClassText)) !== null) {
+      foundPlannedClasses.push(match[1]);
+    }
+
+    // Also look for: participant ParticipantName <<Planned>>
+    const plannedSeqRegex = /(?:participant|actor|boundary|control|entity|database)\s+(\w+)\s+<<\s*Planned\s*>>/gi;
+    while ((match = plannedSeqRegex.exec(tobeSeqText)) !== null) {
+      if (!foundPlannedClasses.includes(match[1])) {
+        foundPlannedClasses.push(match[1]);
+      }
+    }
+
+    const activeClassNames = new Set(
+      astSymbols
+        .filter(sym => sym.kind === 'class' || sym.kind === 'interface')
+        .map(sym => sym.name)
+    );
+
+    const reconciled: string[] = [];
+    const pending: string[] = [];
+
+    foundPlannedClasses.forEach(cls => {
+      if (activeClassNames.has(cls)) {
+        reconciled.push(cls);
+      } else {
+        pending.push(cls);
+      }
+    });
+
+    setReconciliationReport({ reconciled, pending });
+    setShowReconciliation(true);
   };
 
   if (!astSymbols || astSymbols.length === 0) {
@@ -178,7 +276,8 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
   const sequenceTrace = parseSequenceTrace();
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-[fadeIn_0.5s_ease-out]">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-[fadeIn_0.5s_ease-out]">
       
       {/* 1. Left Column: Text Editors & Class Navigator */}
       <div className="lg:col-span-1 space-y-6">
@@ -230,6 +329,42 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
       {/* 2. Middle Column: Diagram editors & SVG views */}
       <div className="lg:col-span-2 space-y-6">
         
+        {/* Architecture Mode Selector */}
+        <div className="flex justify-between items-center bg-slate-900 border border-borderLine rounded-xl p-3">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveMode('asis')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${
+                activeMode === 'asis'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              As-Is Architecture (Codebase)
+            </button>
+            <button
+              onClick={() => setActiveMode('tobe')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${
+                activeMode === 'tobe'
+                  ? 'bg-purple-600 text-white shadow'
+                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              To-Be Architecture (Proposed)
+            </button>
+          </div>
+
+          {activeMode === 'tobe' && (
+            <button
+              onClick={runReconciliation}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 border border-purple-500/30 text-purple-400 hover:text-purple-200 hover:bg-purple-900/10 rounded text-xs font-bold transition-all"
+            >
+              <GitCommit className="w-3.5 h-3.5" />
+              <span>Run Reconciliation</span>
+            </button>
+          )}
+        </div>
+
         {/* Editor controls */}
         <div className="flex justify-between items-center bg-slate-950/40 p-4 border border-borderLine rounded-xl">
           <div className="flex gap-2">
@@ -283,8 +418,8 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
               Class Diagram PlantUML
             </label>
             <textarea
-              value={classDiagramText}
-              onChange={(e) => setClassDiagramText(e.target.value)}
+              value={getActiveClassText()}
+              onChange={(e) => setActiveClassText(e.target.value)}
               className="w-full h-44 p-3 bg-slate-950 border border-borderLine text-slate-300 font-mono text-[11px] rounded focus:outline-none focus:border-blue-500 transition-all resize-none"
             />
           </div>
@@ -294,8 +429,8 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
               Sequence Diagram PlantUML
             </label>
             <textarea
-              value={sequenceDiagramText}
-              onChange={(e) => setSequenceDiagramText(e.target.value)}
+              value={getActiveSeqText()}
+              onChange={(e) => setActiveSeqText(e.target.value)}
               className="w-full h-44 p-3 bg-slate-950 border border-borderLine text-slate-300 font-mono text-[11px] rounded focus:outline-none focus:border-cyan-500 transition-all resize-none"
             />
           </div>
@@ -403,5 +538,88 @@ export default function UMLCanvas({ astSymbols = [], setClassDiagramUrl, setSequ
       </div>
 
     </div>
+
+      {/* Post-Sprint Reconciliation Modal overlay */}
+      {showReconciliation && reconciliationReport && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-[fadeIn_0.15s_ease-out]">
+          <div className="glass border border-borderLine rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-borderLine pb-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5 font-sans">
+                <GitCommit className="w-4 h-4 text-purple-400 animate-pulse" />
+                <span>Post-Sprint Reconciliation Report</span>
+              </h3>
+              <button 
+                onClick={() => setShowReconciliation(false)}
+                className="text-slate-400 hover:text-slate-200 text-xs font-semibold"
+              >
+                Close
+              </button>
+            </div>
+            
+            <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+              This analyzer maps planned class stereotypes (<code className="text-emerald-400">&lt;&lt;Planned&gt;&gt;</code>) from your To-Be model against actual classes in your active codebase snapshot.
+            </p>
+
+            <div className="space-y-3">
+              {/* Reconciled list */}
+              <div>
+                <h4 className="text-[10px] uppercase font-bold text-slate-500 mb-1.5 flex items-center gap-1 font-sans">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Reconciled Classes ({reconciliationReport.reconciled.length})</span>
+                </h4>
+                {reconciliationReport.reconciled.length > 0 ? (
+                  <div className="bg-emerald-950/20 border border-emerald-500/20 rounded p-2 max-h-24 overflow-y-auto space-y-1">
+                    {reconciliationReport.reconciled.map(cls => (
+                      <div key={cls} className="text-xs text-emerald-400 font-mono flex items-center justify-between">
+                        <span>{cls}</span>
+                        <span className="text-[9px] uppercase bg-emerald-500/10 px-1.5 py-0.5 rounded font-bold text-emerald-300">Coded</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-600 italic font-sans">No planned classes have been implemented yet.</p>
+                )}
+              </div>
+
+              {/* Pending list */}
+              <div>
+                <h4 className="text-[10px] uppercase font-bold text-slate-500 mb-1.5 flex items-center gap-1 font-sans">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span>Pending Implementation ({reconciliationReport.pending.length})</span>
+                </h4>
+                {reconciliationReport.pending.length > 0 ? (
+                  <div className="bg-amber-950/20 border border-amber-500/20 rounded p-2 max-h-24 overflow-y-auto space-y-1">
+                    {reconciliationReport.pending.map(cls => (
+                      <div key={cls} className="text-xs text-amber-400 font-mono flex items-center justify-between">
+                        <span>{cls}</span>
+                        <span className="text-[9px] uppercase bg-amber-500/10 px-1.5 py-0.5 rounded font-bold text-amber-300">Planned</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-600 italic font-sans">No pending planned classes.</p>
+                )}
+              </div>
+            </div>
+
+            {reconciliationReport.reconciled.length === 0 && reconciliationReport.pending.length === 0 && (
+              <div className="bg-slate-900 border border-borderLine rounded p-4 text-center text-xs text-slate-500 font-sans">
+                ⚠️ No planned classes (using stereotype <code className="text-slate-400">&lt;&lt;Planned&gt;&gt;</code>) were detected in your To-Be diagrams.
+              </div>
+            )}
+
+            <div className="text-[10px] text-slate-500 border-t border-borderLine/50 pt-3 flex justify-between items-center font-mono">
+              <span>Overall Coverage:</span>
+              <span className="font-bold text-slate-300">
+                {reconciliationReport.reconciled.length + reconciliationReport.pending.length > 0
+                  ? `${Math.round((reconciliationReport.reconciled.length / (reconciliationReport.reconciled.length + reconciliationReport.pending.length)) * 100)}%`
+                  : '0%'
+                }
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

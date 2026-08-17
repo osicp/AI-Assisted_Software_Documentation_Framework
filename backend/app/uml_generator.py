@@ -83,12 +83,15 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
     signatures are defined inside the target class.
     '''
     # 1. Parse Class Diagram
-    # Match: class ClassName or interface ClassName
-    class_blocks = re.findall(r'(?:class|interface)\s+(\w+)(?:\s+<<[\s\S]*?>>)?\s*(?:\{([\s\S]*?)\})?', class_diagram_text)
+    # Match: class ClassName <<Stereotype>> or interface ClassName
+    class_blocks = re.findall(r'(?:class|interface)\s+(\w+)(?:\s+<<([\s\S]*?)>>)?\s*(?:\{([\s\S]*?)\})?', class_diagram_text)
     
     class_methods = {}
-    for class_name, block_content in class_blocks:
+    planned_classes = set()
+    for class_name, stereotype, block_content in class_blocks:
         class_methods[class_name] = set()
+        if stereotype and "planned" in stereotype.lower():
+            planned_classes.add(class_name)
         if block_content:
             # Find methods: search for patterns like +methodName(args) or methodName() or similar
             methods = re.findall(r'(?:[+\-#~]?\s*)(\w+)\s*\(', block_content)
@@ -124,6 +127,11 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
         if p.lower() in ("user", "client", "customer") or p in actor_participants:
             continue
         if p not in class_methods:
+            # Check if this participant is declared as Planned in the sequence diagram text: e.g. "participant p <<Planned>>"
+            is_planned_seq = re.search(r'(?:participant|actor|boundary|control|entity|database)\s+' + re.escape(p) + r'\s+<<\s*Planned\s*>>', sequence_diagram_text, re.IGNORECASE)
+            if is_planned_seq:
+                planned_classes.add(p)
+                continue
             compromised_blocks.append({
                 "type": "MISSING_CLASS",
                 "detail": f"Participant '{p}' in sequence diagram is not defined in class diagram."
@@ -134,6 +142,9 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
         if receiver in class_methods and method:
             # Skip checking basic response returns or non-code labels
             if method.lower() in ("return", "response", "ack", "ok"):
+                continue
+            if receiver in planned_classes:
+                # Soft validation: bypass checks for planned target classes
                 continue
             if method not in class_methods[receiver]:
                 compromised_blocks.append({
