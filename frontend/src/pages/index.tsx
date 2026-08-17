@@ -314,7 +314,7 @@ export default function Dashboard() {
               }`}
             >
               <Activity className="w-4 h-4" />
-              <span>Performance</span>
+              <span>KPIs</span>
             </button>
 
             <button

@@ -145,13 +145,22 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
   const purificationPercent = parseFloat(telemetry?.purification_compression || '38.2');
   const cachingSavingsPercent = parseFloat(telemetry?.context_savings || '79.0');
 
+  const rawSizeBytes = telemetry?.raw_size_bytes || (projectId ? 0 : 1240);
+  const purifiedSizeBytes = telemetry?.purified_size_bytes || (projectId ? 0 : 766);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    if (bytes < 1024) return `${bytes} B`;
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  };
+
   return (
     <div className="space-y-8 animate-[fadeIn_0.5s_ease-out] select-none">
       
       {/* View Title */}
       <div className="border-b border-borderLine pb-4">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
-          Performance Metrics & Observability
+          KPI Metrics & Observability
         </h1>
         <p className="text-sm text-slate-400 mt-1">
           Monitor system transaction speeds, token budgets, compression indexes, and developer telemetry logs.
@@ -238,20 +247,20 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
                   <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
                     <div className="absolute bottom-0 left-0 right-0 bg-blue-500/20 h-full border-t border-blue-500" />
                   </div>
-                  <span>Raw Zip</span>
+                  <span>Raw Zip ({formatBytes(rawSizeBytes)})</span>
                 </div>
                 <div className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
                     <div 
                       className="absolute bottom-0 left-0 right-0 bg-emerald-500/30 border-t border-emerald-500" 
-                      style={{ height: `${Math.max(1, 100 - purificationPercent)}%` }}
+                      style={{ height: `${Math.max(5, (purifiedSizeBytes / Math.max(1, rawSizeBytes)) * 100)}%` }}
                     />
                   </div>
-                  <span className="text-emerald-400 font-bold">-{purificationPercent.toFixed(1)}%</span>
+                  <span className="text-emerald-400 font-bold">-{formatBytes(rawSizeBytes - purifiedSizeBytes)}</span>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 leading-normal">
-                Syntactic purification strips unused spacing, lines, and docstrings, compressing the codebase payload by {purificationPercent.toFixed(1)}% before forwarding to LLM contexts.
+              <p className="text-[10px] text-slate-500 leading-normal font-sans">
+                Syntactic purification strips unused spacing, lines, and docstrings, compressing the codebase payload from {formatBytes(rawSizeBytes)} down to {formatBytes(purifiedSizeBytes)} before forwarding to LLM contexts.
               </p>
             </div>
 
@@ -275,7 +284,7 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
                   <span className="text-indigo-400 font-bold">-{cachingSavingsPercent.toFixed(1)}%</span>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 leading-normal">
+              <p className="text-[10px] text-slate-500 leading-normal font-sans">
                 Google Gemini context caching maintains the base code structure in cache, preventing redundant token re-uploads on iterative modifications.
               </p>
             </div>
