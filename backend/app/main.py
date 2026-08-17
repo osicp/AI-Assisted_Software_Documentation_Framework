@@ -396,7 +396,7 @@ async def verify_ledger(
         transaction_type="LEDGER_AUDIT",
         payload_data={
             "status": audit_res["status"],
-            "scanned_blocks": audit_res["scanned_blocks"],
+            "scanned_blocks": audit_res.get("scanned_blocks", 0),
             "start_id": start_id,
             "chunk_size": chunk_size
         }
@@ -404,7 +404,7 @@ async def verify_ledger(
 
     return {
         "ledger_integrity": "OK" if audit_res["status"] == "SUCCESS" or audit_res["status"] == "CLEAN" else "TAMPERED",
-        "scanned_blocks": audit_res["scanned_blocks"],
+        "scanned_blocks": audit_res.get("scanned_blocks", 0),
         "compromised_blocks": [audit_res["tampered_block_id"]] if audit_res["status"] == "COMPROMISED" else [],
         "verification_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "last_verified_id": audit_res.get("last_verified_id"),

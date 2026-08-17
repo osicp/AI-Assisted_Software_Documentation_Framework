@@ -177,7 +177,8 @@ def audit_ledger_integrity(
             conn.close()
             return {
                 "status": "ERROR",
-                "message": f"Checkpoint block #{start_id - 1} not found to establish chain validation prefix."
+                "message": f"Checkpoint block #{start_id - 1} not found to establish chain validation prefix.",
+                "scanned_blocks": 0
             }
         calculated_prev_sig = row["block_signature"]
     elif expected_prev_sig is not None:
@@ -198,7 +199,9 @@ def audit_ledger_integrity(
         conn.close()
         return {"status": "CLEAN", "message": "No transaction blocks found in the audited range.", "scanned_blocks": 0}
 
+    scanned = 0
     for block in blocks:
+        scanned += 1
         b_id = block["id"]
         p_hash = hashlib.sha256(block["payload"].encode("utf-8")).hexdigest()
 
@@ -208,7 +211,8 @@ def audit_ledger_integrity(
             return {
                 "status": "COMPROMISED",
                 "message": f"CRITICAL Error: Row-level payload has been tampered in Block #{b_id}.",
-                "tampered_block_id": b_id
+                "tampered_block_id": b_id,
+                "scanned_blocks": scanned
             }
 
         # Verify that the declared previous signature link matches calculated values
@@ -217,7 +221,8 @@ def audit_ledger_integrity(
             return {
                 "status": "COMPROMISED",
                 "message": f"CRITICAL Error: Backward signature link broken at Block #{b_id}.",
-                "tampered_block_id": b_id
+                "tampered_block_id": b_id,
+                "scanned_blocks": scanned
             }
 
         # Re-verify the current hash chain computation using the same HMAC key
@@ -232,7 +237,8 @@ def audit_ledger_integrity(
             return {
                 "status": "COMPROMISED",
                 "message": f"CRITICAL Error: Signature signature mismatch at Block #{b_id}.",
-                "tampered_block_id": b_id
+                "tampered_block_id": b_id,
+                "scanned_blocks": scanned
             }
 
         # Move up the chain (updating the target previous register)
