@@ -147,6 +147,8 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
 
   const rawSizeBytes = telemetry?.raw_size_bytes || (projectId ? 0 : 1240);
   const purifiedSizeBytes = telemetry?.purified_size_bytes || (projectId ? 0 : 766);
+  const normalTokenCount = telemetry?.normal_token_count || (projectId ? 0 : 6200);
+  const cachedTokenCount = telemetry?.cached_token_count || (projectId ? 0 : 1302);
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -272,20 +274,20 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
                   <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
                     <div className="absolute bottom-0 left-0 right-0 bg-slate-800 h-full border-t border-slate-700" />
                   </div>
-                  <span>Normal</span>
+                  <span>Normal ({normalTokenCount.toLocaleString()})</span>
                 </div>
                 <div className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
                     <div 
                       className="absolute bottom-0 left-0 right-0 bg-indigo-500/30 border-t border-indigo-500" 
-                      style={{ height: `${Math.max(1, 100 - cachingSavingsPercent)}%` }}
+                      style={{ height: `${Math.max(5, (cachedTokenCount / Math.max(1, normalTokenCount)) * 100)}%` }}
                     />
                   </div>
-                  <span className="text-indigo-400 font-bold">-{cachingSavingsPercent.toFixed(1)}%</span>
+                  <span className="text-indigo-400 font-bold">-{ (normalTokenCount - cachedTokenCount).toLocaleString() } tokens</span>
                 </div>
               </div>
               <p className="text-[10px] text-slate-500 leading-normal font-sans">
-                Google Gemini context caching maintains the base code structure in cache, preventing redundant token re-uploads on iterative modifications.
+                Google Gemini context caching maintains the base code structure in cache, reducing token transfer cost from {normalTokenCount.toLocaleString()} down to {cachedTokenCount.toLocaleString()} tokens on iterative refinements.
               </p>
             </div>
           </div>
