@@ -470,6 +470,32 @@ export default function EpicBoard({
                 const weekNum = startDay < 5 ? 1 : 2;
                 const endDayVal = Math.min(totalDays, startDay + durationDays);
                 
+                const getTargetName = (story: any) => {
+                  // Try to find backticks in action/title first
+                  const actionStr = story.action || '';
+                  const match = actionStr.match(/`([^`]+)`/);
+                  if (match && match[1]) {
+                    return match[1];
+                  }
+                  
+                  // Try to resolve from code pointers filename
+                  if (story.code_pointers && story.code_pointers.length > 0) {
+                    const file = story.code_pointers[0].file || '';
+                    const parts = file.split('/');
+                    const filename = parts[parts.length - 1];
+                    if (filename) {
+                      return filename.replace('.java', '');
+                    }
+                  }
+                  
+                  // Clean standard action prefixes
+                  let cleanAction = actionStr.replace(/^(implement a new |implement a |dispatch |handle |manage |manage connection |throwing a specific |using a cached state |dispatch transaction outcomes via a )/i, '');
+                  const words = cleanAction.split(' ');
+                  return words.slice(0, 2).join(' ');
+                };
+                
+                const targetName = getTargetName(story);
+                
                 return (
                   <div key={story.id} className="flex items-center gap-4 text-xs font-mono select-none">
                     <span className="w-16 text-slate-500">{story.id}</span>
@@ -478,7 +504,7 @@ export default function EpicBoard({
                         style={{ left: startOffset, width: durationWidth }}
                         className="absolute top-1 bottom-1 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 rounded border border-blue-500/30 flex items-center px-2 text-[8px] font-sans text-white truncate font-bold shadow-[0_0_10px_rgba(59,130,246,0.2)]"
                       >
-                        Sprint W{weekNum} (Day {Math.floor(startDay) + 1}-{Math.ceil(endDayVal)}): {story.action}
+                        Sprint W{weekNum} (Day {Math.floor(startDay) + 1}-{Math.ceil(endDayVal)}) '{targetName}'
                       </div>
                     </div>
                   </div>
