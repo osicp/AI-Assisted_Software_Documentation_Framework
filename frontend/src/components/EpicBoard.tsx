@@ -44,6 +44,7 @@ export default function EpicBoard({
   const [sprintGoal, setSprintGoal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCompilingPdf, setIsCompilingPdf] = useState(false);
+  const [includeTimelineInPdf, setIncludeTimelineInPdf] = useState(false);
 
   // Requirements document ingestion states
   const [showReqUpload, setShowReqUpload] = useState(false);
@@ -178,7 +179,8 @@ export default function EpicBoard({
         userStories,
         classDiagramUrl || '',
         sequenceDiagramUrl || '',
-        projectId
+        projectId,
+        includeTimelineInPdf
       );
       
       // Trigger download
@@ -432,10 +434,21 @@ export default function EpicBoard({
         
         {/* Interactive Gantt Timeline map */}
         <div className="lg:col-span-2 glass rounded-xl p-5 border border-borderLine">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-slate-500" />
-            <span>Agile Gantt Timeline Schedulers</span>
-          </h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              <span>Agile Gantt Timeline Schedulers</span>
+            </h3>
+            <label className="flex items-center gap-2 text-[10px] text-slate-400 uppercase font-bold cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                checked={includeTimelineInPdf} 
+                onChange={(e) => setIncludeTimelineInPdf(e.target.checked)} 
+                className="rounded bg-slate-900 border-borderLine text-indigo-500 focus:ring-0 focus:ring-offset-0 cursor-pointer w-3.5 h-3.5"
+              />
+              <span>Include Milestones in PDF</span>
+            </label>
+          </div>
           <div className="space-y-4 pt-2">
             {(() => {
               let devATime = 0;

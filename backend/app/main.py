@@ -74,7 +74,8 @@ class PDFCompileRequest(BaseModel):
     user_stories: List[Dict[str, Any]]
     class_diagram_url: Optional[str] = None
     sequence_diagram_url: Optional[str] = None
-    project_id: Optional[str] = None
+    project_id: Optional[str] = None,
+    include_timeline: Optional[bool] = False
 
 class StubsDownloadRequest(BaseModel):
     ast_symbols: List[Dict[str, Any]]
@@ -592,7 +593,8 @@ async def generate_project_pdf(
             user_stories=payload.user_stories,
             class_diagram_url=payload.class_diagram_url,
             sequence_diagram_url=payload.sequence_diagram_url,
-            project_id=payload.project_id
+            project_id=payload.project_id,
+            include_timeline=payload.include_timeline
         )
         commit_transaction_to_ledger(
             operator_id=operator_id,

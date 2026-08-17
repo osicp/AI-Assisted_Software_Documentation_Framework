@@ -22,7 +22,8 @@ def compile_pdf_report(
     user_stories: List[Dict[str, Any]],
     class_diagram_url: Optional[str] = None,
     sequence_diagram_url: Optional[str] = None,
-    project_id: Optional[str] = None
+    project_id: Optional[str] = None,
+    include_timeline: Optional[bool] = False
 ) -> bytes:
     # Use triple-single quotes for docstring
     '''
@@ -181,6 +182,79 @@ def compile_pdf_report(
         )
         pdf.multi_cell(0, 4, info_txt, border=1, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
+        
+    # 2.6 Sprint Milestones & Timeline Section
+    if include_timeline:
+        pdf.add_page()
+        pdf.set_font("helvetica", "B", 14)
+        pdf.cell(0, 10, "Sprint Milestones & Timeline", new_x="LMARGIN", new_y="NEXT")
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(5)
+        
+        pdf.set_font("helvetica", "", 10)
+        pdf.multi_cell(0, 6, "The following timeline illustrates developer milestones mapped automatically by the Deductive Software Architecture Recovery (SAR) engine.", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(4)
+        
+        # Recalculate schedule values identically to the frontend Gantt algorithm
+        dev_a_time = 0
+        dev_b_time = 0
+        total_days = 10
+        
+        # Render a structured PDF Milestones Table
+        pdf.set_font("helvetica", "B", 10)
+        pdf.set_fill_color(241, 245, 249) # Light slate background for headers
+        pdf.cell(30, 8, "Story ID", border=1, fill=True)
+        pdf.cell(50, 8, "Schedule Window", border=1, fill=True)
+        pdf.cell(110, 8, "Target Milestone", border=1, fill=True, new_x="LMARGIN", new_y="NEXT")
+        
+        pdf.set_font("helvetica", "", 9)
+        for idx, story in enumerate(user_stories):
+            pts = story.get("story_points", 3.0)
+            
+            # Map story points to duration days matching frontend Gantt logic
+            if pts <= 1:
+                duration = 1
+            elif pts <= 2:
+                duration = 1.5
+            elif pts <= 3:
+                duration = 2
+            elif pts <= 5:
+                duration = 3
+            else:
+                duration = 5
+                
+            if idx % 2 == 0:
+                start = dev_a_time
+                dev_a_time = min(total_days, dev_a_time + duration)
+            else:
+                start = dev_b_time
+                dev_b_time = min(total_days, dev_b_time + duration)
+                
+            end = min(total_days, start + duration)
+            week_num = 1 if start < 5 else 2
+            
+            # Resolve target class name using the backticks / filename parser
+            action_str = story.get("action", "")
+            import re
+            match = re.search(r'`([^`]+)`', action_str)
+            if match:
+                target_name = match.group(1)
+            else:
+                pointers = story.get("code_pointers", [])
+                if pointers and isinstance(pointers, list):
+                    file_path = pointers[0].get("file", "")
+                    filename = file_path.split("/")[-1].replace(".java", "") if "/" in file_path else file_path.replace(".java", "")
+                    target_name = filename if filename else "Module"
+                else:
+                    clean_action = re.sub(r'^(implement a new |implement a |dispatch |handle |manage |manage connection |throwing a specific |using a cached state |dispatch transaction outcomes via a )', '', action_str, flags=re.IGNORECASE)
+                    target_name = " ".join(clean_action.split()[:2])
+            
+            # Render Milestone Row
+            pdf.cell(30, 8, story.get("id", "STORY-XX"), border=1)
+            pdf.cell(50, 8, f"Sprint W{week_num} (Day {int(start) + 1}-{int(end)})", border=1)
+            pdf.cell(110, 8, f"'{target_name}'", border=1, new_x="LMARGIN", new_y="NEXT")
+            
+        pdf.ln(10)
         
     # 3. Diagrams Section
     if class_diagram_url or sequence_diagram_url:

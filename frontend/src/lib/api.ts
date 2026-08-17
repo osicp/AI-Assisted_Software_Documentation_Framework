@@ -157,7 +157,8 @@ export const api = {
     userStories: UserStory[],
     classDiagramUrl?: string,
     sequenceDiagramUrl?: string,
-    projectId?: string
+    projectId?: string,
+    includeTimeline?: boolean
   ): Promise<Blob> {
     const res = await apiClient.post(
       '/api/project/report/pdf',
@@ -168,6 +169,7 @@ export const api = {
         class_diagram_url: classDiagramUrl || '',
         sequence_diagram_url: sequenceDiagramUrl || '',
         project_id: projectId || '',
+        include_timeline: !!includeTimeline,
       },
       { responseType: 'blob' }
     );
