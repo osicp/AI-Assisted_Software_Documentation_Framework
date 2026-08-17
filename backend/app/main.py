@@ -151,6 +151,49 @@ async def list_projects(
     finally:
         conn.close()
 
+@app.delete("/api/projects/{project_id}", status_code=status.HTTP_200_OK)
+async def delete_project(
+    project_id: str,
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
+):
+    # Use triple-single quotes for docstring
+    '''
+    Deletes a project and all associated child database records (versions, backlog items, ledger entries).
+    '''
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Verify target project exists
+        cursor.execute("SELECT id FROM projects WHERE id = ?", (project_id,))
+        if cursor.fetchone() is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with ID '{project_id}' does not exist."
+            )
+        
+        # Disable foreign key constraints temporarily to clear data without constraint errors
+        cursor.execute("PRAGMA foreign_keys = OFF")
+        
+        # Delete related tables entries
+        cursor.execute("DELETE FROM write_ahead_ledger WHERE project_id = ?", (project_id,))
+        cursor.execute("DELETE FROM backlog_items WHERE project_id = ?", (project_id,))
+        cursor.execute("DELETE FROM codebase_versions WHERE project_id = ?", (project_id,))
+        cursor.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Project deletion failed: {str(e)}"
+        )
+    finally:
+        # Re-enable foreign key constraints
+        cursor.execute("PRAGMA foreign_keys = ON")
+        conn.close()
+
+    return {"status": "DELETED", "project_id": project_id}
+
 @app.post("/api/codebase/upload", status_code=status.HTTP_201_CREATED)
 async def upload_codebase(
     project_id: str = Query(..., description="Target project identifier"),

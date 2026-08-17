@@ -36,6 +36,11 @@ export const api = {
     return res.data;
   },
 
+  async deleteProject(projectId: string): Promise<{ status: string; project_id: string }> {
+    const res = await apiClient.delete(`/api/projects/${projectId}`);
+    return res.data;
+  },
+
   // Codebase file upload
   async uploadCodebase(
     projectId: string,

@@ -12,7 +12,8 @@ import {
   Settings, 
   Plus, 
   Key,
-  ChevronDown
+  ChevronDown,
+  Trash2
 } from 'lucide-react';
 
 import { Project, UserStory, ASTSymbol } from '../lib/types';
@@ -197,6 +198,38 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!selectedProject) return;
+    const confirmDelete = confirm(`Are you absolutely sure you want to delete the project "${selectedProject.name}"? This will permanently wipe all associated versions, user stories, and audit ledger logs.`);
+    if (!confirmDelete) return;
+
+    try {
+      await api.deleteProject(selectedProject.id);
+      showStatus(`Project '${selectedProject.name}' deleted successfully.`, 'success');
+      
+      // Reload projects list
+      const updatedList = await api.getProjects();
+      setProjects(updatedList);
+      
+      if (updatedList.length > 0) {
+        setSelectedProject(updatedList[0]);
+      } else {
+        setSelectedProject(null);
+        setAstSymbols([]);
+      }
+    } catch (e: any) {
+      console.error(e);
+      let errMsg = "Unknown error";
+      if (e.response?.data?.detail) {
+        const detail = e.response.data.detail;
+        if (typeof detail === 'string') errMsg = detail;
+      } else if (e.message) {
+        errMsg = e.message;
+      }
+      showStatus(`Project Deletion Failed: ${errMsg}`, 'error');
+    }
+  };
+
   const showStatus = (text: string, type: 'info' | 'success' | 'error') => {
     setStatusMessage({ text, type });
     setTimeout(() => setStatusMessage(null), 5000);
@@ -341,6 +374,16 @@ export default function Dashboard() {
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
+
+            {selectedProject && (
+              <button 
+                onClick={handleDeleteProject}
+                className="p-1.5 rounded bg-slate-900 border border-red-500/20 hover:border-red-500/40 hover:bg-red-950/20 text-red-400 hover:text-red-300 transition-all"
+                title="Delete Selected Project"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Interactive Role Switcher Header Inputs Panel */}
