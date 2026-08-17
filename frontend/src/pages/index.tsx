@@ -91,8 +91,7 @@ export default function Dashboard() {
       const generatedClass = generateClassDiagramMarkup(astSymbols);
       setClassDiagramText(generatedClass);
       
-      const classNames = Array.from(new Set(astSymbols.filter(s => s.kind === 'class').map(s => s.name)));
-      const defaultSequence = generateDefaultSequenceMarkup(classNames);
+      const defaultSequence = generateDefaultSequenceMarkup(astSymbols);
       setSequenceDiagramText(defaultSequence);
 
       // Seed To-Be diagrams
