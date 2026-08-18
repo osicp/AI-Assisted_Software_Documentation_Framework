@@ -173,8 +173,8 @@ export default function EpicBoard({
         if (setBackupTobeSeqText) setBackupTobeSeqText(tobeSeqText);
         const seqLines = ["@startuml"];
         res.sequence_flow.forEach((step: any) => {
-          const s = (step.sender || "User").replace(/^[+\-#~]+/g, "").trim();
-          const r = (step.receiver || "Server").replace(/^[+\-#~]+/g, "").trim();
+          const s = (step.sender || "User").trim().replace(/^[+\-#~]+/g, "");
+          const r = (step.receiver || "Server").trim().replace(/^[+\-#~]+/g, "");
           const m = step.message || "call()";
           seqLines.push(`  ${s} -> ${r} : ${m}`);
           
