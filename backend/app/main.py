@@ -20,7 +20,7 @@ from backend.app.optimizer import extract_and_purify_zip
 from backend.app.parser import compile_ast_ctags_index
 from backend.app.sbert_clustering import cluster_and_align_backlog
 from backend.app.uml_generator import plantuml_encode, verify_diagram_consistency
-from backend.app.backlog_generator import generate_backlog_items
+from backend.app.backlog_generator import generate_backlog_items, LLMGatewayError
 from backend.app.document_compiler import compile_pdf_report
 
 # Initialize logging framework
@@ -501,11 +501,17 @@ async def generate_backlog(
     and codebase symbol line mappings using an LLM connector.
     '''
     try:
-        backlog_res = generate_backlog_items(
-            sprint_goal=payload.sprint_goal,
-            ast_symbols=payload.ast_symbols,
-            refined_requirements=payload.refined_requirements
-        )
+        try:
+            backlog_res = generate_backlog_items(
+                sprint_goal=payload.sprint_goal,
+                ast_symbols=payload.ast_symbols,
+                refined_requirements=payload.refined_requirements
+            )
+        except LLMGatewayError as gateway_err:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Backlog generation failure: {str(gateway_err)}. Please check your internet connectivity or credentials and click Generate again."
+            )
         
         # Save generated backlog user stories to the SQLite database
         import json

@@ -44,13 +44,19 @@ def get_mock_llm_response(prompt: str) -> str:
     }
     return json.dumps(mock_data)
 
+class LLMGatewayError(Exception):
+    '''Custom exception raised when connection to the remote LLM fails or times out.'''
+    pass
+
 def call_llm_gateway(prompt: str) -> str:
     # Use triple-single quotes for docstring
     '''
-    Sends prompt to FAU Trussed.ai API gateway, falling back to mock response on failure/offline.
+    Sends prompt to FAU Trussed.ai API gateway, raising LLMGatewayError on failure/offline.
     '''
     # Verify API key is configured
-    if settings.LLM_PROVIDER == "trussed" and not settings.TRUSSED_API_KEY.lower().startswith("your_"):
+    if settings.LLM_PROVIDER == "trussed":
+        if settings.TRUSSED_API_KEY.lower().startswith("your_"):
+            raise LLMGatewayError("LLM API gateway access key is unconfigured. Please configure TRUSSED_API_KEY inside scrummap.env.")
         headers = {
             "Authorization": f"Bearer {settings.TRUSSED_API_KEY}",
             "Content-Type": "application/json"
@@ -66,8 +72,13 @@ def call_llm_gateway(prompt: str) -> str:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"]
-        except Exception:
-            pass
+                else:
+                    raise LLMGatewayError(f"Trussed API Gateway returned status code {resp.status_code}: {resp.text}")
+        except Exception as e:
+            if isinstance(e, LLMGatewayError):
+                raise e
+            raise LLMGatewayError(f"Trussed API Gateway connection failure or timeout: {str(e)}")
+            
     elif settings.LLM_PROVIDER == "openai-compatible" and settings.OPENAI_BASE_URL:
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY or ''}",
@@ -87,10 +98,14 @@ def call_llm_gateway(prompt: str) -> str:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"]
-        except Exception:
-            pass
+                else:
+                    raise LLMGatewayError(f"Local LLM Gateway returned status code {resp.status_code}: {resp.text}")
+        except Exception as e:
+            if isinstance(e, LLMGatewayError):
+                raise e
+            raise LLMGatewayError(f"Local LLM Gateway connection failure or timeout: {str(e)}")
             
-    return get_mock_llm_response(prompt)
+    raise LLMGatewayError("LLM Provider is not correctly configured inside configuration settings.")
 
 def generate_backlog_items(
     sprint_goal: str,
@@ -151,8 +166,8 @@ def generate_backlog_items(
             if match:
                 llm_resp = match.group(1).strip()
         return json.loads(llm_resp)
-    except Exception:
-        return json.loads(get_mock_llm_response(prompt))
+    except Exception as e:
+        raise LLMGatewayError(f"Failed to parse LLM response as JSON backlog blocks: {str(e)}. Raw response was: {llm_resp[:300]}")
 
 if __name__ == "__main__":
     test_symbols = [{"name": "processOrder", "kind": "method", "path": "src/main/java/com/enterprise/OrderService.java"}]
