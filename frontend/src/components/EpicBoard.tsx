@@ -175,22 +175,37 @@ export default function EpicBoard({
         const proposedClasses = new Set<string>();
         
         stories.forEach(story => {
-          const match = (story.action || "").match(/`([^`]+)`/);
+          const actionStr = story.action || '';
+          const match = actionStr.match(/`([^`]+)`/);
+          let target = '';
+          
           if (match && match[1]) {
-            const cls = match[1].trim();
-            if (!existingClassNames.has(cls)) {
-              proposedClasses.add(cls);
-            }
-          }
-          if (story.code_pointers && story.code_pointers.length > 0) {
+            target = match[1].trim();
+          } else if (story.code_pointers && story.code_pointers.length > 0) {
             const file = story.code_pointers[0].file || '';
             const parts = file.split('/');
             const filename = parts[parts.length - 1];
-            if (filename && filename.endsWith('.java')) {
-              const cls = filename.replace('.java', '');
-              if (!existingClassNames.has(cls)) {
-                proposedClasses.add(cls);
+            if (filename) {
+              const extIdx = filename.lastIndexOf('.');
+              const name = extIdx !== -1 ? filename.substring(0, extIdx) : filename;
+              if (name && name !== 'main' && name !== 'index') {
+                target = name;
               }
+            }
+          }
+          
+          if (!target) {
+            let cleanAction = actionStr.replace(/^(implement a new |implement a |dispatch |handle |manage |manage connection |throwing a specific |using a cached state |dispatch transaction outcomes via a )/i, '');
+            const words = cleanAction.split(' ').filter(Boolean);
+            if (words.length > 0) {
+              target = words.slice(0, 2).map(w => w.charAt(0).toUpperCase() + w.slice(1).replace(/[^a-zA-Z0-9]/g, '')).join('');
+            }
+          }
+          
+          if (target && !existingClassNames.has(target)) {
+            const cleanTarget = target.split('.')[0].trim();
+            if (cleanTarget) {
+              proposedClasses.add(cleanTarget);
             }
           }
         });
