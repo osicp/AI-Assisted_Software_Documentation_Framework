@@ -7,7 +7,7 @@
 ## 1. Visual Theme (Salesforce CRM Theme)
 *   Redesign the UI visual theme to match the light-mode Salesforce CRM aesthetic (Salesforce Lightning Design System).
 *   Use standard corporate colors: light-gray backgrounds (`#F3F2F1`), crisp white card panels, and a primary Salesforce blue (`#0070D2`) header bar.
-*   Align the layout more with the detailed unified layout proposed in `dashboard_mockup.md` (Slide 2: Detailed Production Layout with All Controls).
+*   Align the layout more with the detailed unified layout proposed in `dashboard_mockup.md` (Slide 2: Detailed Production Layout with All Controls). Taking in consideration that diagrams can be very large and small at same time. Forcing it to be scrollable and zoomable. 
 
 ## 2. Role-Based Visibility (Strict RBAC Tab/Card Filtering)
 *   Instead of just validating role access at the API level, **physically hide tabs and cards** from the UI if the current active role context does not have access permissions.
