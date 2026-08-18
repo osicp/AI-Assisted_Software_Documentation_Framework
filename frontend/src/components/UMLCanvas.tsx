@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, CheckCircle, AlertTriangle, Play, RefreshCw, ZoomIn, ZoomOut, Maximize2, Layers, GitCommit, Loader2 } from 'lucide-react';
+import { Layout, CheckCircle, AlertTriangle, Play, RefreshCw, ZoomIn, ZoomOut, Maximize2, Layers, GitCommit, Loader2, RotateCcw } from 'lucide-react';
 import { api } from '../lib/api';
 import { ASTSymbol } from '../lib/types';
 
@@ -17,6 +17,10 @@ interface UMLCanvasProps {
   setTobeSeqText: (val: string) => void;
   activeMode: 'asis' | 'tobe';
   setActiveMode: (mode: 'asis' | 'tobe') => void;
+  backupTobeClassText?: string | null;
+  setBackupTobeClassText?: (val: string | null) => void;
+  backupTobeSeqText?: string | null;
+  setBackupTobeSeqText?: (val: string | null) => void;
 }
 
 export default function UMLCanvas({ 
@@ -32,7 +36,11 @@ export default function UMLCanvas({
   tobeSeqText,
   setTobeSeqText,
   activeMode,
-  setActiveMode
+  setActiveMode,
+  backupTobeClassText = null,
+  setBackupTobeClassText,
+  backupTobeSeqText = null,
+  setBackupTobeSeqText
 }: UMLCanvasProps) {
 
   // Reconciliation report states
@@ -61,6 +69,18 @@ export default function UMLCanvas({
 
   const getActiveClassText = () => activeMode === 'asis' ? classDiagramText : tobeClassText;
   const setActiveClassText = (val: string) => activeMode === 'asis' ? setClassDiagramText(val) : setTobeClassText(val);
+  
+  const handleUndoProposed = () => {
+    if (backupTobeClassText !== null && setTobeClassText) {
+      setTobeClassText(backupTobeClassText);
+    }
+    if (backupTobeSeqText !== null && setTobeSeqText) {
+      setTobeSeqText(backupTobeSeqText);
+    }
+    if (setBackupTobeClassText) setBackupTobeClassText(null);
+    if (setBackupTobeSeqText) setBackupTobeSeqText(null);
+    alert("Reverted proposed backlog additions from To-Be diagrams.");
+  };
 
   const getActiveSeqText = () => activeMode === 'asis' ? sequenceDiagramText : tobeSeqText;
   const setActiveSeqText = (val: string) => activeMode === 'asis' ? setSequenceDiagramText(val) : setTobeSeqText(val);
@@ -304,6 +324,15 @@ export default function UMLCanvas({
               {isAuditing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />}
               <span>Audit Consistency</span>
             </button>
+            {(backupTobeClassText !== null || backupTobeSeqText !== null) && (
+              <button
+                onClick={handleUndoProposed}
+                className="flex items-center gap-1.5 px-4 py-2 bg-rose-950/40 border border-rose-800 text-rose-300 hover:text-rose-100 hover:bg-rose-900 rounded text-xs font-bold transition-all"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Undo Proposed Changes</span>
+              </button>
+            )}
           </div>
           
           <div className="flex gap-1 border border-borderLine rounded p-1 bg-slate-900">

@@ -25,6 +25,12 @@ interface EpicBoardProps {
   setUserStories: (stories: UserStory[]) => void;
   classDiagramUrl: string | null;
   sequenceDiagramUrl?: string | null;
+  tobeClassText?: string;
+  setTobeClassText?: (val: string) => void;
+  tobeSeqText?: string;
+  setTobeSeqText?: (val: string) => void;
+  setBackupTobeClassText?: (val: string | null) => void;
+  setBackupTobeSeqText?: (val: string | null) => void;
 }
 
 interface KanbanColumns {
@@ -39,7 +45,13 @@ export default function EpicBoard({
   userStories,
   setUserStories,
   classDiagramUrl,
-  sequenceDiagramUrl
+  sequenceDiagramUrl,
+  tobeClassText = '',
+  setTobeClassText,
+  tobeSeqText = '',
+  setTobeSeqText,
+  setBackupTobeClassText,
+  setBackupTobeSeqText
  }: EpicBoardProps) {
   const [sprintGoal, setSprintGoal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -154,6 +166,82 @@ export default function EpicBoard({
       }
 
       setUserStories(stories);
+      
+      // Programmatically update the To-Be class and sequence diagrams with backlog proposed elements
+      if (stories.length > 0) {
+        const existingClassNames = new Set(
+          astSymbols.filter(sym => sym.kind === 'class').map(sym => sym.name)
+        );
+        const proposedClasses = new Set<string>();
+        
+        stories.forEach(story => {
+          const match = (story.action || "").match(/`([^`]+)`/);
+          if (match && match[1]) {
+            const cls = match[1].trim();
+            if (!existingClassNames.has(cls)) {
+              proposedClasses.add(cls);
+            }
+          }
+          if (story.code_pointers && story.code_pointers.length > 0) {
+            const file = story.code_pointers[0].file || '';
+            const parts = file.split('/');
+            const filename = parts[parts.length - 1];
+            if (filename && filename.endsWith('.java')) {
+              const cls = filename.replace('.java', '');
+              if (!existingClassNames.has(cls)) {
+                proposedClasses.add(cls);
+              }
+            }
+          }
+        });
+        
+        const uniqueProposed = Array.from(proposedClasses);
+        
+        if (uniqueProposed.length > 0) {
+          if (setBackupTobeClassText) setBackupTobeClassText(tobeClassText);
+          if (setBackupTobeSeqText) setBackupTobeSeqText(tobeSeqText);
+          
+          if (setTobeClassText && tobeClassText) {
+            const toAdd = uniqueProposed.filter(cls => !tobeClassText.includes(`class ${cls}`));
+            if (toAdd.length > 0) {
+              const classLines = tobeClassText.split('\n');
+              const endIdx = classLines.lastIndexOf('@enduml');
+              if (endIdx !== -1) {
+                const classAdditions = [
+                  "",
+                  "  ' Proposed green/dashed planned class additions from backlog:",
+                  ...toAdd.map(cls => `  class ${cls} <<Planned>> #line:green;line.dashed;back:lightgreen {\n    +executeTask()\n  }`),
+                  ""
+                ];
+                classLines.splice(endIdx, 0, ...classAdditions);
+                setTobeClassText(classLines.join('\n'));
+              }
+            }
+          }
+          
+          if (setTobeSeqText && tobeSeqText) {
+            const toAdd = uniqueProposed.filter(cls => !tobeSeqText.includes(`-> ${cls}`));
+            if (toAdd.length > 0) {
+              const seqLines = tobeSeqText.split('\n');
+              const endIdx = seqLines.lastIndexOf('@enduml');
+              if (endIdx !== -1) {
+                const lastClass = astSymbols.find(s => s.kind === 'class')?.name || 'User';
+                const seqAdditions = [
+                  "",
+                  "  ' Proposed planned sequence flows from backlog:",
+                  ...toAdd.map((cls, idx) => {
+                    const prev = idx === 0 ? lastClass : toAdd[idx - 1];
+                    return `  ${prev} -> ${cls} : executeTask()`;
+                  }),
+                  ""
+                ];
+                seqLines.splice(endIdx, 0, ...seqAdditions);
+                setTobeSeqText(seqLines.join('\n'));
+              }
+            }
+          }
+        }
+      }
       
       const newCols: { [id: string]: string } = {};
       stories.forEach(s => {
