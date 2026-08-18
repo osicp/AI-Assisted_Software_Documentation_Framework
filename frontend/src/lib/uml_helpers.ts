@@ -2,6 +2,7 @@ import { ASTSymbol } from './types';
 
 export const generateClassDiagramMarkup = (symbols: ASTSymbol[]): string => {
   const classes: { [key: string]: { methods: string[]; filename: string } } = {};
+  const relationships: string[] = [];
   
   symbols.forEach(sym => {
     const path = sym.path || "";
@@ -12,6 +13,8 @@ export const generateClassDiagramMarkup = (symbols: ASTSymbol[]): string => {
     
     if (kind === 'class') {
       classes[name] = { methods: [], filename };
+    } else if (kind === 'relationship' && scope && sym.signature) {
+      relationships.push(`${scope} --> ${sym.signature}`);
     } else if (['method', 'member', 'function'].includes(kind) && scope) {
       if (!classes[scope]) {
         classes[scope] = { methods: [], filename };
@@ -27,6 +30,13 @@ export const generateClassDiagramMarkup = (symbols: ASTSymbol[]): string => {
     cData.methods.forEach(m => lines.push(`  ${m}`));
     lines.push("}");
   });
+  
+  if (relationships.length > 0) {
+    lines.push("");
+    lines.push("  ' Class relationships and dependencies:");
+    relationships.forEach(rel => lines.push(`  ${rel}`));
+  }
+  
   lines.push("@enduml");
   return lines.join('\n');
 };

@@ -167,6 +167,22 @@ export default function EpicBoard({
 
       setUserStories(stories);
       
+      // If sequence_flow is returned from LLM, construct the To-Be Sequence Diagram!
+      if (res.sequence_flow && Array.isArray(res.sequence_flow) && res.sequence_flow.length > 0) {
+        if (setBackupTobeSeqText) setBackupTobeSeqText(tobeSeqText);
+        const seqLines = ["@startuml"];
+        res.sequence_flow.forEach((step: any) => {
+          const s = step.sender || "User";
+          const r = step.receiver || "Server";
+          const m = step.message || "call()";
+          seqLines.push(`  ${s} -> ${r} : ${m}`);
+        });
+        seqLines.push("@enduml");
+        if (setTobeSeqText) {
+          setTobeSeqText(seqLines.join('\n'));
+        }
+      }
+      
       // Programmatically update the To-Be class and sequence diagrams with backlog proposed elements
       if (stories.length > 0) {
         const existingClassNames = new Set(

@@ -107,6 +107,22 @@ def call_llm_gateway(prompt: str) -> str:
             
     raise LLMGatewayError("LLM Provider is not correctly configured inside configuration settings.")
 
+def find_closest_valid_class(name: str, valid_names: set) -> str:
+    if not name or not valid_names:
+        return ""
+    name_lower = name.lower().strip()
+    if name in valid_names:
+        return name
+    # Exact case-insensitive match
+    for v in valid_names:
+        if v.lower() == name_lower:
+            return v
+    # Substring match
+    for v in valid_names:
+        if name_lower in v.lower() or v.lower() in name_lower:
+            return v
+    return ""
+
 def generate_backlog_items(
     sprint_goal: str,
     ast_symbols: List[Dict[str, Any]],
@@ -155,8 +171,19 @@ def generate_backlog_items(
             }}
           ]
         }}
+      ],
+      "sequence_flow": [
+        {{
+          "sender": "CallerClass",
+          "receiver": "ReceiverClass",
+          "message": "methodName()"
+        }}
       ]
     }}
+
+    For the "sequence_flow" array:
+    - Trace the sequence diagram message flows to fulfill the sprint goal.
+    - You must ONLY use class names defined in the Codebase AST Symbols list, or the newly planned classes. Do NOT invent or hallucinate other class names.
     """
     
     llm_resp = call_llm_gateway(prompt)
@@ -165,7 +192,50 @@ def generate_backlog_items(
             match = re.search(r'```(?:json)?([\s\S]*?)```', llm_resp)
             if match:
                 llm_resp = match.group(1).strip()
-        return json.loads(llm_resp)
+        res_data = json.loads(llm_resp)
+        
+        # Extract valid class names
+        existing_classes = [s["name"] for s in ast_symbols if s.get("kind") == "class"]
+        proposed_classes = set()
+        for epic in res_data.get("epics", []):
+            for story in epic.get("user_stories", []):
+                action_str = story.get("action", "")
+                match = re.search(r'`([^`]+)`', action_str)
+                if match:
+                    proposed_classes.add(match.group(1).strip())
+                if story.get("code_pointers"):
+                    for ptr in story["code_pointers"]:
+                        file_name = ptr.get("file", "").split("/")[-1]
+                        if file_name:
+                            name = file_name.split(".")[0]
+                            if name and name not in ("main", "index"):
+                                proposed_classes.add(name)
+        
+        valid_names = set(existing_classes + list(proposed_classes))
+        
+        # Sanitize flow
+        sanitized_flow = []
+        for step in res_data.get("sequence_flow", []):
+            sender = step.get("sender", "").strip()
+            receiver = step.get("receiver", "").strip()
+            msg = step.get("message", "executeTask()").strip()
+            if not sender or not receiver:
+                continue
+            
+            clean_sender = find_closest_valid_class(sender, valid_names) or sender
+            clean_receiver = find_closest_valid_class(receiver, valid_names) or receiver
+            
+            if clean_sender == clean_receiver and clean_sender not in existing_classes:
+                clean_sender = "User"
+                
+            sanitized_flow.append({
+                "sender": clean_sender,
+                "receiver": clean_receiver,
+                "message": msg
+            })
+            
+        res_data["sequence_flow"] = sanitized_flow
+        return res_data
     except Exception as e:
         raise LLMGatewayError(f"Failed to parse LLM response as JSON backlog blocks: {str(e)}. Raw response was: {llm_resp[:300]}")
 
