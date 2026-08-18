@@ -168,14 +168,18 @@ export default function EpicBoard({
       setUserStories(stories);
       
       // If sequence_flow is returned from LLM, construct the To-Be Sequence Diagram!
+      const seqParticipants = new Set<string>();
       if (res.sequence_flow && Array.isArray(res.sequence_flow) && res.sequence_flow.length > 0) {
         if (setBackupTobeSeqText) setBackupTobeSeqText(tobeSeqText);
         const seqLines = ["@startuml"];
         res.sequence_flow.forEach((step: any) => {
-          const s = step.sender || "User";
-          const r = step.receiver || "Server";
+          const s = (step.sender || "User").replace(/^[+\-#~]+/g, "").trim();
+          const r = (step.receiver || "Server").replace(/^[+\-#~]+/g, "").trim();
           const m = step.message || "call()";
           seqLines.push(`  ${s} -> ${r} : ${m}`);
+          
+          if (s !== "User" && s !== "Server" && s !== "Client") seqParticipants.add(s);
+          if (r !== "User" && r !== "Server" && r !== "Client") seqParticipants.add(r);
         });
         seqLines.push("@enduml");
         if (setTobeSeqText) {
@@ -189,6 +193,13 @@ export default function EpicBoard({
           astSymbols.filter(sym => sym.kind === 'class').map(sym => sym.name)
         );
         const proposedClasses = new Set<string>();
+        
+        // Auto-reconcile sequence flow participants as planned classes
+        seqParticipants.forEach(p => {
+          if (!existingClassNames.has(p)) {
+            proposedClasses.add(p);
+          }
+        });
         
         stories.forEach(story => {
           const actionStr = story.action || '';

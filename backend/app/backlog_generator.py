@@ -213,17 +213,20 @@ def generate_backlog_items(
         
         valid_names = set(existing_classes + list(proposed_classes))
         
-        # Sanitize flow
         sanitized_flow = []
         for step in res_data.get("sequence_flow", []):
-            sender = step.get("sender", "").strip()
-            receiver = step.get("receiver", "").strip()
+            sender = step.get("sender", "").strip().lstrip("+-#~ ")
+            receiver = step.get("receiver", "").strip().lstrip("+-#~ ")
             msg = step.get("message", "executeTask()").strip()
             if not sender or not receiver:
                 continue
             
             clean_sender = find_closest_valid_class(sender, valid_names) or sender
             clean_receiver = find_closest_valid_class(receiver, valid_names) or receiver
+            
+            # Re-strip clean names just in case fuzzy match retained or returned prefixes
+            clean_sender = clean_sender.lstrip("+-#~ ")
+            clean_receiver = clean_receiver.lstrip("+-#~ ")
             
             if clean_sender == clean_receiver and clean_sender not in existing_classes:
                 clean_sender = "User"
