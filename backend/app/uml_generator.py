@@ -75,6 +75,20 @@ def generate_sequence_diagram(flow_steps: List[Dict[str, Any]]) -> str:
     lines.append("@enduml")
     return "\n".join(lines)
 
+def strip_plantuml_comments(text: str) -> str:
+    # Use triple-single quotes for docstring
+    '''
+    Filters out PlantUML single-line and multi-line comments from the markup text.
+    '''
+    # Remove multi-line comments: /' ... '/
+    text = re.sub(r"/'[\s\S]*?'/", "", text)
+    # Remove single-line comments: lines starting with optional whitespace followed by '
+    cleaned_lines = []
+    for line in text.splitlines():
+        if not line.strip().startswith("'"):
+            cleaned_lines.append(line)
+    return "\n".join(cleaned_lines)
+
 def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: str) -> Dict[str, Any]:
     # Use triple-single quotes for docstring
     '''
@@ -82,6 +96,8 @@ def verify_diagram_consistency(class_diagram_text: str, sequence_diagram_text: s
     to verify that all communicating lifelines exist as classes, and that all method
     signatures are defined inside the target class.
     '''
+    class_diagram_text = strip_plantuml_comments(class_diagram_text)
+    sequence_diagram_text = strip_plantuml_comments(sequence_diagram_text)
     # 1. Parse Class Diagram
     # Match: class ClassName <<Stereotype>> or interface ClassName
     class_blocks = re.findall(r'(?:class|interface)\s+(\w+)(?:\s+<<([\s\S]*?)>>)?\s*(?:\{([\s\S]*?)\})?', class_diagram_text)
