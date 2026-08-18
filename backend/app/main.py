@@ -537,7 +537,7 @@ async def generate_backlog(
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
-                            story.get("id"),
+                            f"{payload.project_id}_{story.get('id')}",
                             payload.project_id,
                             version_id,
                             story.get("title", ""),
