@@ -22,8 +22,13 @@ def plantuml_encode(plantuml_text: str) -> str:
     
     zlibbed_str = zlib.compress(plantuml_text.encode('utf-8'))
     compressed_string = zlibbed_str[2:-4] # strip zlib headers
-    
-    return base64.b64encode(compressed_string).translate(b64_to_plantuml).decode('utf-8')
+
+    encoded = base64.b64encode(compressed_string).translate(b64_to_plantuml).decode('utf-8')
+    # Standard base64 pads incomplete trailing groups with '=', which isn't part of
+    # PlantUML's alphabet. Those padding positions are computed from zero-extended
+    # bits (same as the real bytes there), so a '=' always represents the alphabet's
+    # zero-symbol rather than "no data" — replace it instead of leaving it invalid.
+    return encoded.replace('=', plantuml_alphabet[0])
 
 def generate_class_diagram(ast_symbols: List[Dict[str, Any]]) -> str:
     # Use triple-single quotes for docstring

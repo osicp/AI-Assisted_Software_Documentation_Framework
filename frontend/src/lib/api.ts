@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Project, UserStory, ASTSymbol, LedgerBlock, AuditReport } from './types';
+import { Project, UserStory, ASTSymbol, LedgerBlock, AuditReport, BacklogGenerationResult } from './types';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -78,26 +78,14 @@ export const api = {
     sprintGoal: string,
     astSymbols: ASTSymbol[],
     refinedRequirements?: string
-  ): Promise<{ user_stories: UserStory[] }> {
+  ): Promise<BacklogGenerationResult> {
     const res = await apiClient.post('/api/backlog/generate', {
       project_id: projectId,
       sprint_goal: sprintGoal,
       ast_symbols: astSymbols,
       refined_requirements: refinedRequirements || '',
     });
-    
-    let stories: UserStory[] = [];
-    if (res.data && Array.isArray(res.data.epics)) {
-      res.data.epics.forEach((epic: any) => {
-        if (epic.user_stories && Array.isArray(epic.user_stories)) {
-          stories = stories.concat(epic.user_stories);
-        }
-      });
-    } else if (res.data && Array.isArray(res.data.user_stories)) {
-      stories = res.data.user_stories;
-    }
-    
-    return { user_stories: stories };
+    return res.data;
   },
 
   // SBERT clustering

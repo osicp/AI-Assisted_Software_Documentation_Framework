@@ -42,6 +42,23 @@ export interface LedgerBlock {
   prev_block_signature: string;
 }
 
+export interface SequenceFlowStep {
+  sender: string;
+  receiver: string;
+  message: string;
+}
+
+export interface BacklogEpic {
+  epic_id?: string;
+  title: string;
+  user_stories: UserStory[];
+}
+
+export interface BacklogGenerationResult {
+  epics: BacklogEpic[];
+  sequence_flow: SequenceFlowStep[];
+}
+
 export interface AuditReport {
   ledger_integrity: "OK" | "TAMPERED";
   scanned_blocks: number;

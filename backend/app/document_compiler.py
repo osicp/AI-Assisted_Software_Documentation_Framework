@@ -3,6 +3,21 @@
 # =============================================================================
 from fpdf import FPDF
 from typing import List, Dict, Any, Optional
+from urllib.parse import urlparse
+
+# The only diagram-rendering host this app itself ever generates URLs for
+# (see uml_generator.py's render_uml). class_diagram_url/sequence_diagram_url
+# are client-supplied, so fetching an unrestricted URL here would let any
+# authenticated caller use this endpoint as an SSRF proxy into internal
+# network addresses.
+_TRUSTED_DIAGRAM_HOSTS = {"www.plantuml.com"}
+
+def _is_trusted_diagram_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    return parsed.scheme in ("http", "https") and parsed.hostname in _TRUSTED_DIAGRAM_HOSTS
 
 class ScrumMapPDF(FPDF):
     def header(self):
@@ -269,15 +284,16 @@ def compile_pdf_report(
             pdf.ln(5)
             
             img_embedded = False
-            try:
-                resp = httpx.get(class_diagram_url, timeout=10.0)
-                if resp.status_code == 200:
-                    img_data = io.BytesIO(resp.content)
-                    pdf.image(img_data, w=180)
-                    img_embedded = True
-            except Exception:
-                pass
-                
+            if _is_trusted_diagram_url(class_diagram_url):
+                try:
+                    resp = httpx.get(class_diagram_url, timeout=10.0)
+                    if resp.status_code == 200:
+                        img_data = io.BytesIO(resp.content)
+                        pdf.image(img_data, w=180)
+                        img_embedded = True
+                except Exception:
+                    pass
+
             if not img_embedded:
                 pdf.set_font("helvetica", "I", 10)
                 pdf.multi_cell(0, 6, f"Class Diagram URL: {class_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")
@@ -291,15 +307,16 @@ def compile_pdf_report(
             pdf.ln(5)
             
             img_embedded = False
-            try:
-                resp = httpx.get(sequence_diagram_url, timeout=10.0)
-                if resp.status_code == 200:
-                    img_data = io.BytesIO(resp.content)
-                    pdf.image(img_data, w=180)
-                    img_embedded = True
-            except Exception:
-                pass
-                
+            if _is_trusted_diagram_url(sequence_diagram_url):
+                try:
+                    resp = httpx.get(sequence_diagram_url, timeout=10.0)
+                    if resp.status_code == 200:
+                        img_data = io.BytesIO(resp.content)
+                        pdf.image(img_data, w=180)
+                        img_embedded = True
+                except Exception:
+                    pass
+
             if not img_embedded:
                 pdf.set_font("helvetica", "I", 10)
                 pdf.multi_cell(0, 6, f"Sequence Diagram URL: {sequence_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")

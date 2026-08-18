@@ -74,7 +74,7 @@ class PDFCompileRequest(BaseModel):
     user_stories: List[Dict[str, Any]]
     class_diagram_url: Optional[str] = None
     sequence_diagram_url: Optional[str] = None
-    project_id: Optional[str] = None,
+    project_id: Optional[str] = None
     include_timeline: Optional[bool] = False
 
 class StubsDownloadRequest(BaseModel):
@@ -403,8 +403,16 @@ async def verify_ledger(
         }
     )
 
+    if audit_res["status"] == "ERROR":
+        # A checkpoint/start_id the caller can't fulfill is a bad request, not a
+        # tampering finding — reporting it as "TAMPERED" would be a false alarm.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=audit_res.get("message", "Ledger audit could not be completed for the given parameters.")
+        )
+
     return {
-        "ledger_integrity": "OK" if audit_res["status"] == "SUCCESS" or audit_res["status"] == "CLEAN" else "TAMPERED",
+        "ledger_integrity": "TAMPERED" if audit_res["status"] == "COMPROMISED" else "OK",
         "scanned_blocks": audit_res.get("scanned_blocks", 0),
         "compromised_blocks": [audit_res["tampered_block_id"]] if audit_res["status"] == "COMPROMISED" else [],
         "verification_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -501,18 +509,12 @@ async def generate_backlog(
     and codebase symbol line mappings using an LLM connector.
     '''
     try:
-        try:
-            backlog_res = generate_backlog_items(
-                sprint_goal=payload.sprint_goal,
-                ast_symbols=payload.ast_symbols,
-                refined_requirements=payload.refined_requirements
-            )
-        except LLMGatewayError as gateway_err:
-            raise HTTPException(
-                status_code=503,
-                detail=f"Backlog generation failure: {str(gateway_err)}. Please check your internet connectivity or credentials and click Generate again."
-            )
-        
+        backlog_res = generate_backlog_items(
+            sprint_goal=payload.sprint_goal,
+            ast_symbols=payload.ast_symbols,
+            refined_requirements=payload.refined_requirements
+        )
+
         # Save generated backlog user stories to the SQLite database
         import json
         conn = get_db_connection()
@@ -524,7 +526,12 @@ async def generate_backlog(
                 (payload.project_id,)
             )
             version_row = cursor.fetchone()
-            version_id = version_row[0] if version_row else "default_version"
+            if version_row is None:
+                raise ValueError(
+                    f"No codebase version found for project '{payload.project_id}'. "
+                    f"Upload a codebase via /api/codebase/upload before generating a backlog."
+                )
+            version_id = version_row[0]
             
             # 2. Clear old backlog items to prevent primary key conflicts or duplicate listings
             cursor.execute("DELETE FROM backlog_items WHERE project_id = ?", (payload.project_id,))
@@ -569,6 +576,28 @@ async def generate_backlog(
             payload_data={"sprint_goal": payload.sprint_goal, "epics_count": len(backlog_res.get("epics", [])), "status": "SUCCESS"},
             project_id=payload.project_id
         )
+    except LLMGatewayError as gateway_err:
+        commit_transaction_to_ledger(
+            operator_id=operator_id,
+            transaction_type="BACKLOG_GENERATION",
+            payload_data={"sprint_goal": payload.sprint_goal, "status": "FAILED", "error": str(gateway_err)},
+            project_id=payload.project_id
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=f"Backlog generation failure: {str(gateway_err)}. Please check your internet connectivity or credentials and click Generate again."
+        )
+    except ValueError as validation_err:
+        commit_transaction_to_ledger(
+            operator_id=operator_id,
+            transaction_type="BACKLOG_GENERATION",
+            payload_data={"sprint_goal": payload.sprint_goal, "status": "FAILED", "error": str(validation_err)},
+            project_id=payload.project_id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(validation_err)
+        )
     except Exception as e:
         commit_transaction_to_ledger(
             operator_id=operator_id,
@@ -580,7 +609,7 @@ async def generate_backlog(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Backlog generation failure: {str(e)}"
         )
-        
+
     return backlog_res
 
 @app.post("/api/project/report/pdf")
@@ -631,7 +660,10 @@ async def generate_project_pdf(
     )
 
 @app.post("/api/project/stubs/download")
-async def download_project_stubs(payload: StubsDownloadRequest):
+async def download_project_stubs(
+    payload: StubsDownloadRequest,
+    operator_id: str = Depends(check_role(["PRODUCT_MANAGER", "LEAD_DEVELOPER", "SYSTEM_ADMIN"]))
+):
     import io
     import zipfile
     
@@ -693,6 +725,13 @@ async def download_project_stubs(payload: StubsDownloadRequest):
             zip_file.writestr(file_path, content)
             
     zip_buffer.seek(0)
+
+    commit_transaction_to_ledger(
+        operator_id=operator_id,
+        transaction_type="CODE_STUB_DOWNLOAD",
+        payload_data={"files_generated": len(grouped_files), "symbols_count": len(payload.ast_symbols)}
+    )
+
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
