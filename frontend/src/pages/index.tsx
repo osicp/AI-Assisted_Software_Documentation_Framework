@@ -59,6 +59,8 @@ export default function Dashboard() {
   const [sequenceDiagramText, setSequenceDiagramText] = useState('');
   const [tobeClassText, setTobeClassText] = useState('');
   const [tobeSeqText, setTobeSeqText] = useState('');
+  const [backupTobeClassText, setBackupTobeClassText] = useState<string | null>(null);
+  const [backupTobeSeqText, setBackupTobeSeqText] = useState<string | null>(null);
   const [activeUmlMode, setActiveUmlMode] = useState<'asis' | 'tobe'>('asis');
 
   // Load initially
@@ -472,6 +474,10 @@ export default function Dashboard() {
               setTobeSeqText={setTobeSeqText}
               activeMode={activeUmlMode}
               setActiveMode={setActiveUmlMode}
+              backupTobeClassText={backupTobeClassText}
+              setBackupTobeClassText={setBackupTobeClassText}
+              backupTobeSeqText={backupTobeSeqText}
+              setBackupTobeSeqText={setBackupTobeSeqText}
             />
           )}
 
@@ -485,6 +491,12 @@ export default function Dashboard() {
               setUserStories={setUserStories}
               classDiagramUrl={classDiagramUrl}
               sequenceDiagramUrl={sequenceDiagramUrl}
+              tobeClassText={tobeClassText}
+              setTobeClassText={setTobeClassText}
+              tobeSeqText={tobeSeqText}
+              setTobeSeqText={setTobeSeqText}
+              setBackupTobeClassText={setBackupTobeClassText}
+              setBackupTobeSeqText={setBackupTobeSeqText}
             />
           )}
 

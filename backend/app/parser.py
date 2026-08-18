@@ -61,4 +61,32 @@ def compile_ast_ctags_index(purified_workspace_dir: str) -> List[Dict[str, Any]]
             f"(SETUP.md §1.2) or verify the binary is on PATH inside the container."
         ) from e
 
+    # Extract relationships between classes based on static usage/import signatures
+    class_symbols = [s for s in symbols if s.get("kind") == "class"]
+    class_names = {s["name"]: s for s in class_symbols}
+    for c_name, c_sym in class_names.items():
+        rel_path = c_sym.get("path")
+        if not rel_path:
+            continue
+        file_path = os.path.join(abs_workspace_dir, rel_path)
+        if not os.path.exists(file_path):
+            continue
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            import re
+            words = set(re.findall(r"\b\w+\b", content))
+            for other_name in class_names:
+                if other_name != c_name and other_name in words:
+                    symbols.append({
+                        "name": f"{c_name} --> {other_name}",
+                        "kind": "relationship",
+                        "path": rel_path,
+                        "line": 1,
+                        "signature": other_name,
+                        "scope": c_name
+                    })
+        except Exception:
+            pass
+
     return symbols

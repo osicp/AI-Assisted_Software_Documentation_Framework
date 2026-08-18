@@ -44,13 +44,19 @@ def get_mock_llm_response(prompt: str) -> str:
     }
     return json.dumps(mock_data)
 
+class LLMGatewayError(Exception):
+    '''Custom exception raised when connection to the remote LLM fails or times out.'''
+    pass
+
 def call_llm_gateway(prompt: str) -> str:
     # Use triple-single quotes for docstring
     '''
-    Sends prompt to FAU Trussed.ai API gateway, falling back to mock response on failure/offline.
+    Sends prompt to FAU Trussed.ai API gateway, raising LLMGatewayError on failure/offline.
     '''
     # Verify API key is configured
-    if settings.LLM_PROVIDER == "trussed" and not settings.TRUSSED_API_KEY.lower().startswith("your_"):
+    if settings.LLM_PROVIDER == "trussed":
+        if settings.TRUSSED_API_KEY.lower().startswith("your_"):
+            raise LLMGatewayError("LLM API gateway access key is unconfigured. Please configure TRUSSED_API_KEY inside scrummap.env.")
         headers = {
             "Authorization": f"Bearer {settings.TRUSSED_API_KEY}",
             "Content-Type": "application/json"
@@ -66,8 +72,13 @@ def call_llm_gateway(prompt: str) -> str:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"]
-        except Exception:
-            pass
+                else:
+                    raise LLMGatewayError(f"Trussed API Gateway returned status code {resp.status_code}: {resp.text}")
+        except Exception as e:
+            if isinstance(e, LLMGatewayError):
+                raise e
+            raise LLMGatewayError(f"Trussed API Gateway connection failure or timeout: {str(e)}")
+            
     elif settings.LLM_PROVIDER == "openai-compatible" and settings.OPENAI_BASE_URL:
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY or ''}",
@@ -87,10 +98,30 @@ def call_llm_gateway(prompt: str) -> str:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"]
-        except Exception:
-            pass
+                else:
+                    raise LLMGatewayError(f"Local LLM Gateway returned status code {resp.status_code}: {resp.text}")
+        except Exception as e:
+            if isinstance(e, LLMGatewayError):
+                raise e
+            raise LLMGatewayError(f"Local LLM Gateway connection failure or timeout: {str(e)}")
             
-    return get_mock_llm_response(prompt)
+    raise LLMGatewayError("LLM Provider is not correctly configured inside configuration settings.")
+
+def find_closest_valid_class(name: str, valid_names: set) -> str:
+    if not name or not valid_names:
+        return ""
+    name_lower = name.lower().strip()
+    if name in valid_names:
+        return name
+    # Exact case-insensitive match
+    for v in valid_names:
+        if v.lower() == name_lower:
+            return v
+    # Substring match
+    for v in valid_names:
+        if name_lower in v.lower() or v.lower() in name_lower:
+            return v
+    return ""
 
 def generate_backlog_items(
     sprint_goal: str,
@@ -140,8 +171,19 @@ def generate_backlog_items(
             }}
           ]
         }}
+      ],
+      "sequence_flow": [
+        {{
+          "sender": "CallerClass",
+          "receiver": "ReceiverClass",
+          "message": "methodName()"
+        }}
       ]
     }}
+
+    For the "sequence_flow" array:
+    - Trace the sequence diagram message flows to fulfill the sprint goal.
+    - You must ONLY use class names defined in the Codebase AST Symbols list, or the newly planned classes. Do NOT invent or hallucinate other class names.
     """
     
     llm_resp = call_llm_gateway(prompt)
@@ -150,9 +192,55 @@ def generate_backlog_items(
             match = re.search(r'```(?:json)?([\s\S]*?)```', llm_resp)
             if match:
                 llm_resp = match.group(1).strip()
-        return json.loads(llm_resp)
-    except Exception:
-        return json.loads(get_mock_llm_response(prompt))
+        res_data = json.loads(llm_resp)
+        
+        # Extract valid class names
+        existing_classes = [s["name"] for s in ast_symbols if s.get("kind") == "class"]
+        proposed_classes = set()
+        for epic in res_data.get("epics", []):
+            for story in epic.get("user_stories", []):
+                action_str = story.get("action", "")
+                match = re.search(r'`([^`]+)`', action_str)
+                if match:
+                    proposed_classes.add(match.group(1).strip())
+                if story.get("code_pointers"):
+                    for ptr in story["code_pointers"]:
+                        file_name = ptr.get("file", "").split("/")[-1]
+                        if file_name:
+                            name = file_name.split(".")[0]
+                            if name and name not in ("main", "index"):
+                                proposed_classes.add(name)
+        
+        valid_names = set(existing_classes + list(proposed_classes))
+        
+        sanitized_flow = []
+        for step in res_data.get("sequence_flow", []):
+            sender = step.get("sender", "").strip().lstrip("+-#~ ")
+            receiver = step.get("receiver", "").strip().lstrip("+-#~ ")
+            msg = step.get("message", "executeTask()").strip()
+            if not sender or not receiver:
+                continue
+            
+            clean_sender = find_closest_valid_class(sender, valid_names) or sender
+            clean_receiver = find_closest_valid_class(receiver, valid_names) or receiver
+            
+            # Re-strip clean names just in case fuzzy match retained or returned prefixes
+            clean_sender = clean_sender.lstrip("+-#~ ")
+            clean_receiver = clean_receiver.lstrip("+-#~ ")
+            
+            if clean_sender == clean_receiver and clean_sender not in existing_classes:
+                clean_sender = "User"
+                
+            sanitized_flow.append({
+                "sender": clean_sender,
+                "receiver": clean_receiver,
+                "message": msg
+            })
+            
+        res_data["sequence_flow"] = sanitized_flow
+        return res_data
+    except Exception as e:
+        raise LLMGatewayError(f"Failed to parse LLM response as JSON backlog blocks: {str(e)}. Raw response was: {llm_resp[:300]}")
 
 if __name__ == "__main__":
     test_symbols = [{"name": "processOrder", "kind": "method", "path": "src/main/java/com/enterprise/OrderService.java"}]

@@ -25,6 +25,12 @@ interface EpicBoardProps {
   setUserStories: (stories: UserStory[]) => void;
   classDiagramUrl: string | null;
   sequenceDiagramUrl?: string | null;
+  tobeClassText?: string;
+  setTobeClassText?: (val: string) => void;
+  tobeSeqText?: string;
+  setTobeSeqText?: (val: string) => void;
+  setBackupTobeClassText?: (val: string | null) => void;
+  setBackupTobeSeqText?: (val: string | null) => void;
 }
 
 interface KanbanColumns {
@@ -39,7 +45,13 @@ export default function EpicBoard({
   userStories,
   setUserStories,
   classDiagramUrl,
-  sequenceDiagramUrl
+  sequenceDiagramUrl,
+  tobeClassText = '',
+  setTobeClassText,
+  tobeSeqText = '',
+  setTobeSeqText,
+  setBackupTobeClassText,
+  setBackupTobeSeqText
  }: EpicBoardProps) {
   const [sprintGoal, setSprintGoal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -154,6 +166,124 @@ export default function EpicBoard({
       }
 
       setUserStories(stories);
+      
+      // If sequence_flow is returned from LLM, construct the To-Be Sequence Diagram!
+      const seqParticipants = new Set<string>();
+      if (res.sequence_flow && Array.isArray(res.sequence_flow) && res.sequence_flow.length > 0) {
+        if (setBackupTobeSeqText) setBackupTobeSeqText(tobeSeqText);
+        const seqLines = ["@startuml"];
+        res.sequence_flow.forEach((step: any) => {
+          const s = (step.sender || "User").trim().replace(/^[+\-#~]+/g, "");
+          const r = (step.receiver || "Server").trim().replace(/^[+\-#~]+/g, "");
+          const m = step.message || "call()";
+          seqLines.push(`  ${s} -> ${r} : ${m}`);
+          
+          if (s !== "User" && s !== "Server" && s !== "Client") seqParticipants.add(s);
+          if (r !== "User" && r !== "Server" && r !== "Client") seqParticipants.add(r);
+        });
+        seqLines.push("@enduml");
+        if (setTobeSeqText) {
+          setTobeSeqText(seqLines.join('\n'));
+        }
+      }
+      
+      // Programmatically update the To-Be class and sequence diagrams with backlog proposed elements
+      if (stories.length > 0) {
+        const existingClassNames = new Set(
+          astSymbols.filter(sym => sym.kind === 'class').map(sym => sym.name)
+        );
+        const proposedClasses = new Set<string>();
+        
+        // Auto-reconcile sequence flow participants as planned classes
+        seqParticipants.forEach(p => {
+          if (!existingClassNames.has(p)) {
+            proposedClasses.add(p);
+          }
+        });
+        
+        stories.forEach(story => {
+          const actionStr = story.action || '';
+          const match = actionStr.match(/`([^`]+)`/);
+          let target = '';
+          
+          if (match && match[1]) {
+            target = match[1].trim();
+          } else if (story.code_pointers && story.code_pointers.length > 0) {
+            const file = story.code_pointers[0].file || '';
+            const parts = file.split('/');
+            const filename = parts[parts.length - 1];
+            if (filename) {
+              const extIdx = filename.lastIndexOf('.');
+              const name = extIdx !== -1 ? filename.substring(0, extIdx) : filename;
+              if (name && name !== 'main' && name !== 'index') {
+                target = name;
+              }
+            }
+          }
+          
+          if (!target) {
+            let cleanAction = actionStr.replace(/^(implement a new |implement a |dispatch |handle |manage |manage connection |throwing a specific |using a cached state |dispatch transaction outcomes via a )/i, '');
+            const words = cleanAction.split(' ').filter(Boolean);
+            if (words.length > 0) {
+              target = words.slice(0, 2).map(w => w.charAt(0).toUpperCase() + w.slice(1).replace(/[^a-zA-Z0-9]/g, '')).join('');
+            }
+          }
+          
+          if (target && !existingClassNames.has(target)) {
+            const cleanTarget = target.split('.')[0].trim();
+            if (cleanTarget) {
+              proposedClasses.add(cleanTarget);
+            }
+          }
+        });
+        
+        const uniqueProposed = Array.from(proposedClasses);
+        
+        if (uniqueProposed.length > 0) {
+          if (setBackupTobeClassText) setBackupTobeClassText(tobeClassText);
+          if (setBackupTobeSeqText) setBackupTobeSeqText(tobeSeqText);
+          
+          if (setTobeClassText && tobeClassText) {
+            const toAdd = uniqueProposed.filter(cls => !tobeClassText.includes(`class ${cls}`));
+            if (toAdd.length > 0) {
+              const classLines = tobeClassText.split('\n');
+              const endIdx = classLines.lastIndexOf('@enduml');
+              if (endIdx !== -1) {
+                const classAdditions = [
+                  "",
+                  "  ' Proposed green/dashed planned class additions from backlog:",
+                  ...toAdd.map(cls => `  class ${cls} <<Planned>> #line:green;line.dashed;back:lightgreen {\n    +executeTask()\n  }`),
+                  ""
+                ];
+                classLines.splice(endIdx, 0, ...classAdditions);
+                setTobeClassText(classLines.join('\n'));
+              }
+            }
+          }
+          
+          if (setTobeSeqText && tobeSeqText) {
+            const toAdd = uniqueProposed.filter(cls => !tobeSeqText.includes(`-> ${cls}`));
+            if (toAdd.length > 0) {
+              const seqLines = tobeSeqText.split('\n');
+              const endIdx = seqLines.lastIndexOf('@enduml');
+              if (endIdx !== -1) {
+                const lastClass = astSymbols.find(s => s.kind === 'class')?.name || 'User';
+                const seqAdditions = [
+                  "",
+                  "  ' Proposed planned sequence flows from backlog:",
+                  ...toAdd.map((cls, idx) => {
+                    const prev = idx === 0 ? lastClass : toAdd[idx - 1];
+                    return `  ${prev} -> ${cls} : executeTask()`;
+                  }),
+                  ""
+                ];
+                seqLines.splice(endIdx, 0, ...seqAdditions);
+                setTobeSeqText(seqLines.join('\n'));
+              }
+            }
+          }
+        }
+      }
       
       const newCols: { [id: string]: string } = {};
       stories.forEach(s => {
