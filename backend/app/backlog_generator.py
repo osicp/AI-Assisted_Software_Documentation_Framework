@@ -3,8 +3,9 @@
 # =============================================================================
 import re
 import json
+import time
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from backend.app.config import settings
 
 def get_mock_llm_response(prompt: str) -> str:
@@ -48,10 +49,12 @@ class LLMGatewayError(Exception):
     '''Custom exception raised when connection to the remote LLM fails or times out.'''
     pass
 
-def call_llm_gateway(prompt: str) -> str:
+def call_llm_gateway(prompt: str) -> Tuple[str, Dict[str, Any]]:
     # Use triple-single quotes for docstring
     '''
     Sends prompt to FAU Trussed.ai API gateway, raising LLMGatewayError on failure/offline.
+    Returns (content, usage) where usage is the raw token-usage dict reported by the
+    gateway (prompt_tokens/completion_tokens/total_tokens), or {} if the gateway omitted it.
     '''
     # Verify API key is configured
     if settings.LLM_PROVIDER == "trussed":
@@ -71,14 +74,14 @@ def call_llm_gateway(prompt: str) -> str:
                 resp = client.post(settings.TRUSSED_API_URL, json=payload, headers=headers)
                 if resp.status_code == 200:
                     data = resp.json()
-                    return data["choices"][0]["message"]["content"]
+                    return data["choices"][0]["message"]["content"], data.get("usage", {}) or {}
                 else:
                     raise LLMGatewayError(f"Trussed API Gateway returned status code {resp.status_code}: {resp.text}")
         except Exception as e:
             if isinstance(e, LLMGatewayError):
                 raise e
             raise LLMGatewayError(f"Trussed API Gateway connection failure or timeout: {str(e)}")
-            
+
     elif settings.LLM_PROVIDER == "openai-compatible" and settings.OPENAI_BASE_URL:
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY or ''}",
@@ -97,14 +100,14 @@ def call_llm_gateway(prompt: str) -> str:
                 resp = client.post(url, json=payload, headers=headers)
                 if resp.status_code == 200:
                     data = resp.json()
-                    return data["choices"][0]["message"]["content"]
+                    return data["choices"][0]["message"]["content"], data.get("usage", {}) or {}
                 else:
                     raise LLMGatewayError(f"Local LLM Gateway returned status code {resp.status_code}: {resp.text}")
         except Exception as e:
             if isinstance(e, LLMGatewayError):
                 raise e
             raise LLMGatewayError(f"Local LLM Gateway connection failure or timeout: {str(e)}")
-            
+
     raise LLMGatewayError("LLM Provider is not correctly configured inside configuration settings.")
 
 def find_closest_valid_class(name: str, valid_names: set) -> str:
@@ -186,7 +189,9 @@ def generate_backlog_items(
     - You must ONLY use class names defined in the Codebase AST Symbols list, or the newly planned classes. Do NOT invent or hallucinate other class names.
     """
     
-    llm_resp = call_llm_gateway(prompt)
+    llm_start = time.perf_counter()
+    llm_resp, llm_usage = call_llm_gateway(prompt)
+    llm_latency_seconds = time.perf_counter() - llm_start
     try:
         if "```" in llm_resp:
             match = re.search(r'```(?:json)?([\s\S]*?)```', llm_resp)
@@ -238,9 +243,86 @@ def generate_backlog_items(
             })
             
         res_data["sequence_flow"] = sanitized_flow
+
+        # Flatten real, verifiable signals for downstream telemetry (see /api/metrics/telemetry):
+        # - story_signatures: a per-run fingerprint of generated stories, used to diff consecutive runs
+        # - code_pointer_claims: (file, symbol) pairs the LLM claims to touch, used to measure real
+        #   hallucination drift. The file is kept alongside the symbol so the telemetry endpoint can
+        #   tell "references an existing file's real symbol" apart from "proposes a brand-new file" —
+        #   the latter is expected sprint-planning output, not a hallucination, and must not be flagged.
+        story_signatures = []
+        code_pointer_claims = []
+        for epic in res_data.get("epics", []):
+            for story in epic.get("user_stories", []):
+                story_signatures.append(f"{story.get('role', '')}|{story.get('action', '')}|{story.get('benefit', '')}")
+                for ptr in story.get("code_pointers", []):
+                    file_ref = ptr.get("file", "")
+                    for sym in ptr.get("symbols", []):
+                        code_pointer_claims.append({"file": file_ref, "symbol": sym})
+
+        res_data["_telemetry"] = {
+            "usage": llm_usage,
+            "latency_seconds": round(llm_latency_seconds, 3),
+            "story_signatures": story_signatures,
+            "code_pointer_claims": code_pointer_claims,
+        }
         return res_data
     except Exception as e:
         raise LLMGatewayError(f"Failed to parse LLM response as JSON backlog blocks: {str(e)}. Raw response was: {llm_resp[:300]}")
+
+def check_requirements_ambiguity(
+    sprint_goal: str,
+    ast_symbols: List[Dict[str, Any]],
+    refined_requirements: str
+) -> Tuple[bool, List[str]]:
+    # Use triple-single quotes for docstring
+    '''
+    Analyzes high-level requirements and sprint goal against codebase AST symbols
+    using the LLM to identify structural/logic gaps, returning (is_ambiguous, questions).
+    '''
+    import logging
+    logger = logging.getLogger("backlog_generator")
+    
+    symbols_summary = json.dumps(ast_symbols[:40], indent=2)
+    prompt = f"""
+    You are an expert Agile Product Manager and Software Architect.
+    Analyze the following sprint goal, codebase symbols list, and draft requirements to identify logical gaps, contradictions, omissions, or database/API schema alignment issues.
+    
+    Sprint Goal: {sprint_goal}
+    Codebase AST Symbols:
+    {symbols_summary}
+    Draft Requirements:
+    {refined_requirements}
+    
+    If the requirements are clear, consistent, and logically sound, set "is_ambiguous" to false and return an empty list of questions.
+    If you detect critical omissions, ambiguities, or logic gaps, set "is_ambiguous" to true and list up to 3 short, specific questions for clarification.
+    
+    Respond ONLY with a raw JSON block matching this schema:
+    {{
+      "is_ambiguous": false,
+      "questions": []
+    }}
+    or
+    {{
+      "is_ambiguous": true,
+      "questions": ["Specific question about gap 1", "Specific question about gap 2"]
+    }}
+    """
+    try:
+        llm_resp, _ = call_llm_gateway(prompt)
+        if "```" in llm_resp:
+            match = re.search(r'```(?:json)?([\s\S]*?)```', llm_resp)
+            if match:
+                llm_resp = match.group(1).strip()
+        res_data = json.loads(llm_resp)
+        is_ambiguous = bool(res_data.get("is_ambiguous", False))
+        questions = res_data.get("questions", [])
+        if not isinstance(questions, list):
+            questions = []
+        return is_ambiguous, [str(q) for q in questions]
+    except Exception as e:
+        logger.warning(f"Ambiguity check validation failed to parse or execute: {str(e)}")
+        return False, []
 
 if __name__ == "__main__":
     test_symbols = [{"name": "processOrder", "kind": "method", "path": "src/main/java/com/enterprise/OrderService.java"}]

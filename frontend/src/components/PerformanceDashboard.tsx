@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Cpu, Percent, BarChart3, HelpCircle, HardDrive, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { Activity, Cpu, Percent, BarChart3, HelpCircle, HardDrive, Sparkles, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { api } from '../lib/api';
+import { TelemetryMetrics } from '../lib/types';
+import InfoTooltip from './InfoTooltip';
 
 interface PerformanceDashboardProps {
   projectId?: string;
 }
 
 export default function PerformanceDashboard({ projectId }: PerformanceDashboardProps) {
-  const [telemetry, setTelemetry] = useState<any>(null);
+  const [telemetry, setTelemetry] = useState<TelemetryMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchFailed, setFetchFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
     const fetchTelemetry = async () => {
       setIsLoading(true);
+      setFetchFailed(false);
       try {
         const data = await api.getTelemetry(projectId);
         if (active) {
@@ -21,6 +25,10 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
         }
       } catch (err) {
         console.error("Failed to fetch telemetry metrics", err);
+        if (active) {
+          setTelemetry(null);
+          setFetchFailed(true);
+        }
       } finally {
         if (active) {
           setIsLoading(false);
@@ -35,9 +43,31 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 gap-3 select-none text-slate-400 font-mono text-xs">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      <div className="flex flex-col items-center justify-center h-96 gap-3 select-none text-sfTextMuted font-mono text-xs">
+        <Loader2 className="w-8 h-8 text-sfBlue animate-spin" />
         <span>Loading live database telemetry metrics...</span>
+      </div>
+    );
+  }
+
+  if (fetchFailed || !telemetry) {
+    return (
+      <div className="space-y-8 animate-[fadeIn_0.5s_ease-out] select-none">
+        <div className="border-b border-borderLine pb-4">
+          <h1 className="text-2xl font-bold tracking-tight text-sfTextPrimary">
+            KPI Metrics & Observability
+          </h1>
+          <p className="text-sm text-sfTextMuted mt-1">
+            Monitor system transaction speeds, token budgets, compression indexes, and developer telemetry logs.
+          </p>
+        </div>
+        <div className="flex flex-col items-center justify-center h-72 gap-3 text-center border border-dashed border-sfError/30 bg-sfErrorBg rounded-xl">
+          <AlertTriangle className="w-8 h-8 text-sfError" />
+          <h4 className="text-xs font-bold uppercase tracking-wider text-sfError">Could Not Load Live Telemetry</h4>
+          <p className="text-[11px] text-sfError max-w-sm leading-relaxed">
+            The telemetry API could not be reached. No metrics are shown rather than stale or placeholder values.
+          </p>
+        </div>
       </div>
     );
   }
@@ -45,110 +75,98 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
   const kpis = [
     {
       name: 'DB WAL Write Latency',
-      value: telemetry ? telemetry.db_latency : '2.8 ms',
+      value: telemetry.db_latency,
       target: '< 5 ms',
       desc: 'Database transaction write latency in non-blocking WAL mode.',
-      status: 'optimal',
+      tooltip: 'Measures how quickly writes commit to the database log; lower latency keeps the app responsive under concurrent access.',
       icon: HardDrive,
-      color: 'text-emerald-400',
-      barColor: 'bg-emerald-500'
+      color: 'text-sfSuccess',
     },
     {
       name: 'Purification Compression',
-      value: telemetry ? telemetry.purification_compression : '38.2%',
+      value: telemetry.purification_compression,
       target: '~ 35%',
       desc: 'File size reduction after structural comments and logging purification.',
-      status: 'optimal',
+      tooltip: 'Tracks how much smaller the codebase gets after stripping comments and logging, which directly lowers LLM context size and cost.',
       icon: Percent,
-      color: 'text-blue-400',
-      barColor: 'bg-blue-500'
+      color: 'text-sfBlue',
     },
     {
-      name: 'Context Caching Savings',
-      value: telemetry ? telemetry.context_savings : '79.0%',
-      target: '79% target',
-      desc: 'LLM token cost savings using Gemini 2.5 context caching proxies.',
-      status: 'optimal',
+      name: 'Avg Tokens / Generation',
+      value: telemetry.avg_tokens_per_generation,
+      target: 'Track over time',
+      desc: 'Average total LLM tokens (prompt + completion) consumed per backlog-generation run for this project.',
+      tooltip: 'Averaged across every successful backlog generation for this project, using the real token usage reported by the LLM gateway.',
       icon: Sparkles,
-      color: 'text-indigo-400',
-      barColor: 'bg-indigo-500'
+      color: 'text-sfPurple',
     },
     {
       name: 'Verification Tax (V_tax)',
-      value: telemetry ? telemetry.verification_tax : '1.8',
+      value: telemetry.verification_tax,
       target: '< 5.0',
       desc: 'Relative human effort rating (prompt corrections per task).',
-      status: 'optimal',
+      tooltip: 'Quantifies how many manual corrections a task needs after LLM output, signaling how much human oversight is still required.',
       icon: HelpCircle,
-      color: 'text-cyan-400',
-      barColor: 'bg-cyan-500'
+      color: 'text-sfBlue',
     },
     {
       name: 'Tokens per Backlog Item',
-      value: telemetry ? telemetry.tokens_per_item : '0 tokens',
+      value: telemetry.tokens_per_item,
       target: '< 1,500',
-      desc: 'Average LLM token load (input + output) per compiled story.',
-      status: 'optimal',
+      desc: 'Average LLM token load (input + output) per compiled story, from the latest generation run.',
+      tooltip: 'Averages combined input and output tokens spent per backlog item, used to estimate and control ongoing API costs.',
       icon: BarChart3,
-      color: 'text-rose-400',
-      barColor: 'bg-rose-500'
+      color: 'text-sfPurple',
     },
     {
       name: 'LLM Inference Latency',
-      value: telemetry ? telemetry.inference_latency : '0.0 s',
+      value: telemetry.inference_latency,
       target: '< 3.0 s',
-      desc: 'Turnaround speed of external LLM prompt-response execution.',
-      status: 'optimal',
+      desc: 'Turnaround speed of the latest LLM gateway prompt-response call.',
+      tooltip: 'Times the round trip from sending a prompt to receiving the model response, a key driver of perceived tool responsiveness.',
       icon: Activity,
-      color: 'text-amber-400',
-      barColor: 'bg-amber-500'
+      color: 'text-sfBlue',
     },
     {
       name: 'Hallucination Drift Index',
-      value: telemetry ? telemetry.hallucination_drift : '0.0%',
+      value: telemetry.hallucination_drift,
       target: '< 10.0%',
-      desc: 'Consistency deviation of code symbol mappings between refinements.',
-      status: 'optimal',
+      desc: 'Share of symbols the latest backlog claims to modify in existing files that do not actually exist there.',
+      tooltip: 'Only checks claims about files that already exist in your codebase; new files the backlog proposes for planned work are not counted as drift.',
       icon: HelpCircle,
-      color: 'text-orange-400',
-      barColor: 'bg-orange-500'
+      color: 'text-sfPurple',
     },
     {
       name: 'Active Machine Latency',
-      value: telemetry ? telemetry.machine_latency : '0.0 s',
+      value: telemetry.machine_latency,
       target: '< 15.0 s',
-      desc: 'Total compiled time for parsing, prompt execution, UML render, and PDF write.',
-      status: 'optimal',
+      desc: 'Sum of measured codebase parsing time, LLM inference time, and database read time.',
+      tooltip: 'Sums the end-to-end pipeline time across parsing, LLM calls, and database access for the latest run.',
       icon: Cpu,
-      color: 'text-purple-400',
-      barColor: 'bg-purple-500'
+      color: 'text-sfBlue',
     },
     {
       name: 'Total Scoping Duration',
-      value: telemetry ? telemetry.scoping_duration : '0.0 min',
+      value: telemetry.scoping_duration,
       target: '< 15.0 min',
-      desc: 'Total human-in-the-loop planning session elapsed duration.',
-      status: 'optimal',
+      desc: 'Elapsed time between the first codebase upload and the latest PDF compile for this project.',
+      tooltip: 'Reports 0.0 min until a PDF has actually been compiled for this project — it measures a completed cycle, not an in-progress guess.',
       icon: Loader2,
-      color: 'text-fuchsia-400',
-      barColor: 'bg-fuchsia-500'
+      color: 'text-sfPurple',
     }
   ];
 
   const telemetryMetrics = [
-    { label: 'Prompt Iterations (I_p)', value: telemetry ? telemetry.prompt_iterations : '2', target: 'Max 5', percent: telemetry ? telemetry.percent_iterations : 40 },
-    { label: 'Corrective Prompts (C_prompts)', value: telemetry ? telemetry.corrective_prompts : '1', target: 'Max 3', percent: telemetry ? telemetry.percent_corrective : 33 },
-    { label: 'Git Diff Distances (D_edit)', value: telemetry ? telemetry.git_diff_lines : '8 lines', target: 'Average 50', percent: telemetry ? telemetry.percent_git : 53 },
-    { label: 'Validation Failures (F_val)', value: telemetry ? telemetry.validation_failures : '0', target: '0', percent: telemetry ? telemetry.percent_validation : 0 }
+    { label: 'Prompt Iterations (I_p)', value: telemetry.prompt_iterations, target: 'Max 5', percent: telemetry.percent_iterations },
+    { label: 'Corrective Prompts (C_prompts)', value: telemetry.corrective_prompts, target: 'Max 3', percent: telemetry.percent_corrective },
+    { label: 'Backlog Revision Delta (D_edit)', value: telemetry.git_diff_lines, target: 'Average 50', percent: telemetry.percent_git },
+    { label: 'Validation Failures (F_val)', value: telemetry.validation_failures, target: '0', percent: telemetry.percent_validation }
   ];
 
-  const purificationPercent = parseFloat(telemetry?.purification_compression || '38.2');
-  const cachingSavingsPercent = parseFloat(telemetry?.context_savings || '79.0');
-
-  const rawSizeBytes = telemetry?.raw_size_bytes || (projectId ? 0 : 1240);
-  const purifiedSizeBytes = telemetry?.purified_size_bytes || (projectId ? 0 : 766);
-  const normalTokenCount = telemetry?.normal_token_count || (projectId ? 0 : 6200);
-  const cachedTokenCount = telemetry?.cached_token_count || (projectId ? 0 : 1302);
+  const rawSizeBytes = telemetry.raw_size_bytes;
+  const purifiedSizeBytes = telemetry.purified_size_bytes;
+  const promptTokens = telemetry.prompt_tokens;
+  const completionTokens = telemetry.completion_tokens;
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -158,13 +176,13 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
 
   return (
     <div className="space-y-8 animate-[fadeIn_0.5s_ease-out] select-none">
-      
+
       {/* View Title */}
       <div className="border-b border-borderLine pb-4">
-        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
+        <h1 className="text-2xl font-bold tracking-tight text-sfTextPrimary">
           KPI Metrics & Observability
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-sfTextMuted mt-1">
           Monitor system transaction speeds, token budgets, compression indexes, and developer telemetry logs.
         </p>
       </div>
@@ -174,19 +192,20 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
-            <div key={idx} className="glass glass-hover rounded-xl p-5 border border-borderLine flex flex-col justify-between h-48">
+            <div key={idx} className="relative glass glass-hover rounded-xl p-5 border border-borderLine flex flex-col justify-between h-48">
+              <InfoTooltip text={kpi.tooltip} className="absolute top-3 right-11" />
               <div className="flex justify-between items-start">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">{kpi.name}</span>
+                <span className="text-[10px] uppercase tracking-wider text-sfTextMuted font-bold">{kpi.name}</span>
                 <Icon className={`w-5 h-5 ${kpi.color}`} />
               </div>
 
               <div className="my-3">
-                <div className="text-3xl font-black text-slate-100 font-mono tracking-tight">{kpi.value}</div>
-                <div className="text-[10px] text-slate-500 mt-1">Target Threshold: {kpi.target}</div>
+                <div className="text-3xl font-black text-sfTextPrimary font-mono tracking-tight">{kpi.value}</div>
+                <div className="text-[10px] text-sfTextMuted mt-1">Target Threshold: {kpi.target}</div>
               </div>
 
-              <div className="border-t border-slate-900/50 pt-3">
-                <p className="text-[10px] text-slate-400 leading-relaxed font-sans">{kpi.desc}</p>
+              <div className="border-t border-sfBorder pt-3">
+                <p className="text-[10px] text-sfTextMuted leading-relaxed font-sans">{kpi.desc}</p>
               </div>
             </div>
           );
@@ -195,26 +214,27 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
 
       {/* Bottom panels: Telemetry logs & historical curves */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Interaction Effort Tracker logs */}
-        <div className="lg:col-span-1 glass rounded-xl p-5 border border-borderLine flex flex-col justify-between">
+        <div className="relative lg:col-span-1 glass rounded-xl p-5 border border-borderLine flex flex-col justify-between">
+          <InfoTooltip text="Tracks how much manual back-and-forth (iterations, corrections, edits, and failures) was needed to reach a working result." className="absolute top-3 right-3" />
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-1.5 border-b border-slate-900 pb-2">
-              <Activity className="w-3.5 h-3.5 text-rose-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-sfTextMuted mb-4 flex items-center gap-1.5 border-b border-sfBorder pb-2">
+              <Activity className="w-3.5 h-3.5 text-sfBlue" />
               <span>Effort Tracker Telemetry</span>
             </h3>
 
             <div className="space-y-4 font-sans text-xs pt-2">
               {telemetryMetrics.map((metric, idx) => (
                 <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-slate-300">
+                  <div className="flex justify-between text-sfTextPrimary">
                     <span className="font-semibold">{metric.label}</span>
-                    <span className="font-mono text-slate-400">{metric.value} <span className="text-slate-600 text-[10px]">/ {metric.target}</span></span>
+                    <span className="font-mono text-sfTextMuted">{metric.value} <span className="text-sfTextMuted/70 text-[10px]">/ {metric.target}</span></span>
                   </div>
-                  <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
-                    <div 
+                  <div className="w-full bg-background h-2 rounded-full overflow-hidden border border-sfBorder">
+                    <div
                       className={`h-2 rounded-full transition-all duration-500 ${
-                        metric.value === '0' ? 'bg-slate-800' : 'bg-blue-500'
+                        metric.value === '0' ? 'bg-sfBorder' : 'bg-sfBlue'
                       }`}
                       style={{ width: `${metric.percent}%` }}
                     />
@@ -224,9 +244,9 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-slate-900 flex justify-between items-center text-[10px] text-slate-500 font-mono">
+          <div className="mt-6 pt-4 border-t border-sfBorder flex justify-between items-center text-[10px] text-sfTextMuted font-mono">
             <span>Status: Normal Range</span>
-            <span className="text-emerald-400 flex items-center gap-1">
+            <span className="text-sfSuccess flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Optimized</span>
             </span>
@@ -234,60 +254,68 @@ export default function PerformanceDashboard({ projectId }: PerformanceDashboard
         </div>
 
         {/* Caching & Compression comparison visualizer */}
-        <div className="lg:col-span-2 glass rounded-xl p-5 border border-borderLine">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-1.5 border-b border-slate-900 pb-2">
-            <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+        <div className="relative lg:col-span-2 glass rounded-xl p-5 border border-borderLine">
+          <InfoTooltip text="Visualizes real storage savings from code purification alongside the real prompt/completion token split of the latest backlog generation." className="absolute top-3 right-3" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-sfTextMuted mb-4 flex items-center gap-1.5 border-b border-sfBorder pb-2">
+            <Cpu className="w-3.5 h-3.5 text-sfPurple" />
             <span>Resource Compression & API Optimization Indexes</span>
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 select-none">
             {/* Compression Chart representation */}
             <div className="space-y-4">
-              <h4 className="text-[10px] uppercase font-bold text-slate-500">Purified Storage Savings</h4>
-              <div className="flex items-end gap-3 h-28 pt-4 border-b border-slate-900 px-2 font-mono text-[9px] text-slate-500">
+              <h4 className="text-[10px] uppercase font-bold text-sfTextMuted">Purified Storage Savings</h4>
+              <div className="flex items-end gap-3 h-28 pt-4 border-b border-sfBorder px-2 font-mono text-[9px] text-sfTextMuted">
                 <div className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
-                    <div className="absolute bottom-0 left-0 right-0 bg-blue-500/20 h-full border-t border-blue-500" />
+                  <div className="w-full bg-background border border-sfBorder h-24 rounded-t relative">
+                    <div className="absolute bottom-0 left-0 right-0 bg-sfBlue/20 h-full border-t border-sfBlue" />
                   </div>
                   <span>Raw Zip ({formatBytes(rawSizeBytes)})</span>
                 </div>
                 <div className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 bg-emerald-500/30 border-t border-emerald-500" 
-                      style={{ height: `${Math.max(5, (purifiedSizeBytes / Math.max(1, rawSizeBytes)) * 100)}%` }}
+                  <div className="w-full bg-background border border-sfBorder h-24 rounded-t relative">
+                    <div
+                      className="absolute bottom-0 left-0 right-0 bg-sfSuccess/30 border-t border-sfSuccess"
+                      style={{ height: `${Math.min(100, Math.max(5, (purifiedSizeBytes / Math.max(1, rawSizeBytes)) * 100))}%` }}
                     />
                   </div>
-                  <span className="text-emerald-400 font-bold">-{formatBytes(rawSizeBytes - purifiedSizeBytes)}</span>
+                  <span className="text-sfSuccess font-bold">-{formatBytes(Math.max(0, rawSizeBytes - purifiedSizeBytes))}</span>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 leading-normal font-sans">
-                Syntactic purification strips unused spacing, lines, and docstrings, compressing the codebase payload from {formatBytes(rawSizeBytes)} down to {formatBytes(purifiedSizeBytes)} before forwarding to LLM contexts.
+              <p className="text-[10px] text-sfTextMuted leading-normal font-sans">
+                {rawSizeBytes > 0
+                  ? `Syntactic purification strips unused spacing, lines, and docstrings, compressing the codebase payload from ${formatBytes(rawSizeBytes)} down to ${formatBytes(purifiedSizeBytes)} before forwarding to LLM contexts.`
+                  : 'Upload a codebase to measure real purification savings for this project.'}
               </p>
             </div>
 
-            {/* Token Savings Chart representation */}
+            {/* Token Usage Breakdown */}
             <div className="space-y-4">
-              <h4 className="text-[10px] uppercase font-bold text-slate-500">API Token Consumption</h4>
-              <div className="flex items-end gap-3 h-28 pt-4 border-b border-slate-900 px-2 font-mono text-[9px] text-slate-500">
+              <h4 className="text-[10px] uppercase font-bold text-sfTextMuted">Token Usage Breakdown</h4>
+              <div className="flex items-end gap-3 h-28 pt-4 border-b border-sfBorder px-2 font-mono text-[9px] text-sfTextMuted">
                 <div className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
-                    <div className="absolute bottom-0 left-0 right-0 bg-slate-800 h-full border-t border-slate-700" />
-                  </div>
-                  <span>Normal ({normalTokenCount.toLocaleString()})</span>
-                </div>
-                <div className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-slate-900 border border-slate-800 h-24 rounded-t relative">
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 bg-indigo-500/30 border-t border-indigo-500" 
-                      style={{ height: `${Math.max(5, (cachedTokenCount / Math.max(1, normalTokenCount)) * 100)}%` }}
+                  <div className="w-full bg-background border border-sfBorder h-24 rounded-t relative">
+                    <div
+                      className="absolute bottom-0 left-0 right-0 bg-sfBlue/20 h-full border-t border-sfBlue"
+                      style={{ height: `${Math.max(5, (promptTokens / Math.max(1, promptTokens + completionTokens)) * 100)}%` }}
                     />
                   </div>
-                  <span className="text-indigo-400 font-bold">-{ (normalTokenCount - cachedTokenCount).toLocaleString() } tokens</span>
+                  <span>Prompt ({promptTokens.toLocaleString()})</span>
+                </div>
+                <div className="flex-1 flex flex-col items-center gap-1">
+                  <div className="w-full bg-background border border-sfBorder h-24 rounded-t relative">
+                    <div
+                      className="absolute bottom-0 left-0 right-0 bg-sfPurple/30 border-t border-sfPurple"
+                      style={{ height: `${Math.max(5, (completionTokens / Math.max(1, promptTokens + completionTokens)) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-sfPurple font-bold">Completion ({completionTokens.toLocaleString()})</span>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 leading-normal font-sans">
-                Google Gemini context caching maintains the base code structure in cache, reducing token transfer cost from {normalTokenCount.toLocaleString()} down to {cachedTokenCount.toLocaleString()} tokens on iterative refinements.
+              <p className="text-[10px] text-sfTextMuted leading-normal font-sans">
+                {promptTokens + completionTokens > 0
+                  ? `The latest backlog generation used ${promptTokens.toLocaleString()} prompt tokens and ${completionTokens.toLocaleString()} completion tokens, as reported by the LLM gateway.`
+                  : 'Generate a backlog to measure real token usage for this project.'}
               </p>
             </div>
           </div>

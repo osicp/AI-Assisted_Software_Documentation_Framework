@@ -1,6 +1,6 @@
 # ScrumMap: Comprehensive System Design & Technical Specifications
 
-This document serves as the authoritative, technically exhaustive System Design Specification for **ScrumMap**. It outlines the localized single-workstation system topologies, programmatic data optimization pipelines, in-memory context caching strategies, relational database schemas, and developer-facing observability layers that realize a secure, air-gapped requirements-to-backlog synthesis tool.
+This document serves as the authoritative, technically exhaustive System Design Specification for **ScrumMap**. It outlines the localized single-workstation system topologies, programmatic data optimization pipelines, AST symbol indexing strategies, relational database schemas, and developer-facing observability layers that realize a secure, air-gapped requirements-to-backlog synthesis tool.
 
 ---
 
@@ -20,7 +20,7 @@ The central viewport is divided into **four core visualization tabs**, each mapp
     *   **Drag-and-Drop File Container**: An interactive upload boundary restricted programmatically to `.zip` file packages (`<input type="file" accept=".zip" />`).
     *   **Absolute Directory Path Scanner**: [REMOVED FOR SECURITY COMPLIANCE] Removed to enforce zero-trust container boundary isolation and protect against Local File Inclusion (LFI) traversal. Ingestion is strictly routed through explicit ZIP archive uploads.
     *   **Streaming Progress Indicators**: Dynamic CSS-transitioned progress bars displaying real-time upload progress, file-size summaries, and pipeline state updates.
-    *   **Operational Pipeline Stepper**: Visual step indicators reflecting the backend execution states: *Ingesting Stream*, *Structural Noise Purifying*, *AST Symbol Indexing*, *Context Caching*, and *Ledger Audit Registration*.
+    *   **Operational Pipeline Stepper**: Visual step indicators reflecting the backend execution states: *Ingesting Stream*, *Structural Noise Purifying*, *AST Symbol Indexing*, *SpecMap Registration*, and *Ledger Audit Registration*.
     *   **Role Picker Dropdown**: Selects which locally-configured role key (see `scrummap.env` §6) the client attaches as the `X-ScrumMap-Role-Key` header on subsequent requests. The backend derives the enforced role from the key itself, not from this dropdown selection, so switching roles here only changes which key the browser sends — it cannot be used to spoof a role without possessing that role's key.
 
 ### 1.3 View 2: Tab 1 — Technical Documentation (Interactive UML Canvas)
@@ -508,7 +508,7 @@ The observability engine tracks and logs the following runtime performance metri
 
 ### 7.4 Observability Dashboards
 *   **Effort Tracker Dashboard**: Tracks interaction telemetry, charting prompt iterations ($I_p$), corrective prompts ($C_{prompts}$), git diff distances ($D_{edit}$), and compilation validation failures ($F_{val}$) to compile historical velocity estimates.
-*   **Token Budget and Context Caching Performance**: Displays a live graph comparing active cache hits against raw token ingestion. It monitors total token consumption (costs per million tokens) to verify that long-context caching is achieving the target **79% token budget savings**.
+*   **Token Budget Performance**: Displays a live graph showing token consumption across queries. It monitors total token consumption (costs per million tokens) to verify that the purified context is achieving significant token budget savings compared to raw codebase prompts.
 
 ---
 

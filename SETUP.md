@@ -237,7 +237,7 @@ MAX_UNCOMPRESSED_BYTES_MULTIPLIER=5
 # Log in to https://trussed.hpc.fau.edu with Single Sign-On to generate your API key.
 TRUSSED_API_KEY=your_secure_trussed_api_key_here
 TRUSSED_API_URL=https://fauengtrussed.fau.edu/provider/generic
-# Context Caching via HootCamp Gemini project (gemini-2.5-pro).
+# LLM model via HootCamp Gemini project (gemini-2.5-pro).
 LLM_MODEL=gemini-2.5-pro
 
 # 5. Offline Alternative Fallbacks (Local Integration)

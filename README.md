@@ -25,12 +25,12 @@ Unlike typical Retrieval-Augmented Generation (RAG) frameworks that rely on vect
 
 ## How It Works
 
-ScrumMap is a framework that prioritizes deterministic API-First execution over Probabilistic-Interface interaction. It operates entirely within a single workstation's environment where all services are isolated inside a unified rootless `Podman pod`. First, it ingests the raw binary multi-part stream of the `.zip` archive in fixed **1MB chunks** and pipes them directly to temporary storage on disk. During decompression, it purifies functional components. Once decompressed, it constructs high-resolution AST traceability indexes. To comply with **Zero-Data Retention**, immediately after static AST symbol extraction and intermediate schema caching are completed, the framework wipes the **raw codebase folders and binary files**. Then, the indexed codebase is fed to a **optimizer/verification loop** that outputs the **LLM Context Caching**, all subsequent sprint-planning interactions, sequence modeling rounds, and documentation generation events query directly against this pre-cached context. In addition, all operations from a codebase ingestion event (`ZIP_CODEBASE_UPLOAD`) to a requirements optimization query are hashed and recorded in a tamper-proof `SQLite database` transaction ledger to guarantee absolute enterprise audit accountability.
+ScrumMap is a framework that prioritizes deterministic API-First execution over Probabilistic-Interface interaction. It operates entirely within a single workstation's environment where all services are isolated inside a unified rootless `Podman pod`. First, it ingests the raw binary multi-part stream of the `.zip` archive in fixed **1MB chunks** and pipes them directly to temporary storage on disk. During decompression, it purifies functional components. Once decompressed, it constructs high-resolution AST traceability indexes. To comply with **Zero-Data Retention**, immediately after static AST symbol extraction and intermediate schema caching are completed, the framework wipes the **raw codebase folders and binary files**. Then, the indexed codebase is fed to a **optimizer/verification loop** to generate sprint-planning interactions, sequence modeling rounds, and documentation generation events. In addition, all operations from a codebase ingestion event (`ZIP_CODEBASE_UPLOAD`) to a requirements optimization query are hashed and recorded in a tamper-proof `SQLite database` transaction ledger to guarantee absolute enterprise audit accountability.
 
 ```
 ┌─────────────────------─┐ 1. Structural Elim. & Syntactic Dil. ┌────────────────────────┐
 │  User Codebase         │ -----------------------------------► │ Optimized Code Context │
-│(Up to 2.0GB-compressed)│    (SQLite Cryptographic Ledger)     │ (In-Memory LLM Cache)  │
+│(Up to 2.0GB-compressed)│    (SQLite Cryptographic Ledger)     │ (SQLite Symbol Index)  │
 └──────────────────------┘                                      └───-────┬─----──────────┘
                                                                          |           
                                                                          | 2. SpecMap TLR
@@ -60,16 +60,14 @@ When a user uploads a compressed codebase folder (supporting sizes up to 2.0 GB)
 
 To prevent administrative manipulation of the codebase and the generated artifacts, all model responses are hashed and appended to a SQLite database, creating a **Chained Ledger Verification**, an immutable audit trail that ensures transparency and accountability within the enterprise environment.
 
-### Step 2: SpecMap and Code Caching (Setting up Traceability Link Recovery and Local Memory)
+### Step 2: SpecMap and Code Indexing (Setting up Traceability Link Recovery)
 The framework avoids direct document-to-code mapping. Instead, it systematically narrows down search scopes via a four-stage hierarchical discovery process:
 * **Folder Discovery:** Maps functional specifications to target folder paths by matching high-level requirements with generated folder descriptions.
-* **File Discovery:** Automatically compiles dynamically cached markdown schemas (`folder_structure.md`) that detail each module's purpose.
+* **File Discovery:** Automatically compiles markdown schemas (`folder_structure.md`) detailing each module's purpose.
 * **Code Symbol Discovery:** Uses **Universal Ctags** to extract granular definitions (functions, macros, classes, variables, etc.) with precise line-number boundaries. Employs DFS file-tree traversal for **top-down coverage** with a **10% overlap rate** across parent-child directory boundaries to prevent knowledge gaps.
 * **Validation & Gap Analysis:** Compares extracted definitions against functional requirements to assign statuses (Implemented, Partially, Not Implemented, or Not Applicable.)
 
-Rather than reloading and analyzing the entire codebase for every subsequent query or requirement, we leverage advanced **Long-Context Caching** by reusing Key-Value caches across iterative context-aware queries.
-* The cleaned codebase structure and dependency graphs are indexed and cached in-memory **exactly once**.
-* Subsequent developer prompts, Q&A rounds, and task generation passes query directly against this pre-warmed cache. This mechanism **greatly reduces operational compute cost and latency**, enabling complex cross-file queries to return results in seconds.
+To enable complex cross-file queries to return results in seconds, the framework builds high-resolution index mappings of codebase structures and dependency graphs. Subsequent developer prompts, Q&A rounds, and task generation passes use these optimized indexes to target specific files and symbols directly rather than traversing raw directories repeatedly, minimizing prompt overhead and token costs.
 
 ### Step 3: Requirements Ingestion (The Verifier-Optimizer Loop)
 Raw requirements submitted by stakeholders are frequently ambiguous, incomplete, or non-atomic. Given that a prerequisite for SDLC automation is to transform these requirements into Structured Natural Language (SNL), we pass these requirements through the **Verifier-Optimizer Loop** that does the following:

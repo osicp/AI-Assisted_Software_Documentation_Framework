@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { Project, UserStory, ASTSymbol, LedgerBlock, AuditReport, BacklogGenerationResult } from './types';
+import { Project, UserStory, ASTSymbol, LedgerBlock, AuditReport, BacklogGenerationResult, TelemetryMetrics, Developer } from './types';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8000` : 'http://localhost:8000');
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -77,13 +77,15 @@ export const api = {
     projectId: string,
     sprintGoal: string,
     astSymbols: ASTSymbol[],
-    refinedRequirements?: string
-  ): Promise<BacklogGenerationResult> {
+    refinedRequirements?: string,
+    answers?: {[key: string]: string}
+  ): Promise<any> {
     const res = await apiClient.post('/api/backlog/generate', {
       project_id: projectId,
       sprint_goal: sprintGoal,
       ast_symbols: astSymbols,
       refined_requirements: refinedRequirements || '',
+      answers: answers || null,
     });
     return res.data;
   },
@@ -132,7 +134,7 @@ export const api = {
     return res.data;
   },
 
-  async getTelemetry(projectId?: string): Promise<any> {
+  async getTelemetry(projectId?: string): Promise<TelemetryMetrics> {
     const params = projectId ? { project_id: projectId } : {};
     const res = await apiClient.get('/api/metrics/telemetry', { params });
     return res.data;
@@ -161,6 +163,37 @@ export const api = {
       },
       { responseType: 'blob' }
     );
+    return res.data;
+  },
+
+  async getBacklog(projectId: string): Promise<UserStory[]> {
+    const res = await apiClient.get(`/api/projects/${projectId}/backlog`);
+    return res.data;
+  },
+
+  async getDevelopers(projectId: string): Promise<Developer[]> {
+    const res = await apiClient.get(`/api/projects/${projectId}/developers`);
+    return res.data;
+  },
+
+  async addDeveloper(projectId: string, name: string, isLead: boolean = false): Promise<Developer> {
+    const res = await apiClient.post(`/api/projects/${projectId}/developers`, {
+      name,
+      is_lead: isLead
+    });
+    return res.data;
+  },
+
+  async deleteDeveloper(projectId: string, devId: string): Promise<{ status: string }> {
+    const res = await apiClient.delete(`/api/projects/${projectId}/developers/${devId}`);
+    return res.data;
+  },
+
+  async assignStory(projectId: string, storyId: string, developerIds: string[]): Promise<{ status: string; assigned_developer_ids: string[] }> {
+    const res = await apiClient.post(`/api/backlog/${storyId}/assign`, {
+      developer_ids: developerIds,
+      project_id: projectId
+    });
     return res.data;
   },
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Code2, Folder, FileCode, Download, CheckCircle, FileText, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { ASTSymbol, UserStory } from '../lib/types';
 import axios from 'axios';
+import InfoTooltip from './InfoTooltip';
 
 interface CodeViewerProps {
   astSymbols?: ASTSymbol[];
@@ -76,76 +77,193 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
     }
   };
 
+  // Helper to extract file extension and clean class/struct names
+  const getFileMetadata = (filePath: string) => {
+    const filename = filePath.split('/').pop() || 'Service';
+    const parts = filename.split('.');
+    const ext = parts.length > 1 ? parts.pop()?.toLowerCase() || '' : '';
+    const baseName = parts.join('.');
+    
+    // Capitalize class name
+    const className = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+    
+    return {
+      className: className || 'Service',
+      ext,
+      filename
+    };
+  };
+
   // Dynamic code synthesizers
   const generatePurifiedCode = (filePath: string) => {
     const symbols = groupedFiles[filePath] || [];
-    const className = filePath.split('/').pop()?.replace('.java', '') || 'Service';
-    const lines = [
-      `package com.enterprise;`,
-      ``,
-      `public class ${className} {`
-    ];
+    const { className, ext } = getFileMetadata(filePath);
+    const isTSorJS = ext === 'ts' || ext === 'tsx' || ext === 'js' || ext === 'jsx';
+    const isPython = ext === 'py';
+    const isGo = ext === 'go';
+
+    const lines: string[] = [];
+
+    if (isTSorJS) {
+      lines.push(`export class ${className} {`);
+    } else if (isPython) {
+      lines.push(`class ${className}:`);
+    } else if (isGo) {
+      lines.push(`package main`);
+      lines.push(``);
+      lines.push(`type ${className} struct {}`);
+      lines.push(``);
+    } else {
+      // Java / fallback
+      lines.push(`package com.enterprise;`);
+      lines.push(``);
+      lines.push(`public class ${className} {`);
+    }
 
     symbols.forEach(sym => {
       if (sym.kind !== 'class' && sym.name) {
-        lines.push(`    public void ${sym.name}${sym.signature || '()'} {`);
-        lines.push(`        // Purified implementation code stripped under ZDR policy`);
-        lines.push(`    }`);
+        if (isTSorJS) {
+          lines.push(`    public ${sym.name}${sym.signature || '()'} {`);
+          lines.push(`        // Purified implementation code stripped under ZDR policy`);
+          lines.push(`    }`);
+        } else if (isPython) {
+          let sig = sym.signature || '()';
+          if (sig.startsWith('(')) {
+            sig = sig === '()' ? '(self)' : `(self, ${sig.slice(1)}`;
+          } else {
+            sig = '(self)';
+          }
+          lines.push(`    def ${sym.name}${sig}:`);
+          lines.push(`        # Purified implementation code stripped under ZDR policy`);
+          lines.push(`        pass`);
+        } else if (isGo) {
+          const capitalizedMethodName = sym.name.charAt(0).toUpperCase() + sym.name.slice(1);
+          lines.push(`func (c *${className}) ${capitalizedMethodName}${sym.signature || '()'} {`);
+          lines.push(`    // Purified implementation code stripped under ZDR policy`);
+          lines.push(`}`);
+        } else {
+          lines.push(`    public void ${sym.name}${sym.signature || '()'} {`);
+          lines.push(`        // Purified implementation code stripped under ZDR policy`);
+          lines.push(`    }`);
+        }
         lines.push(``);
       }
     });
 
-    lines.push(`}`);
+    if (!isPython && !isGo) {
+      lines.push(`}`);
+    }
     return lines.join('\n');
   };
 
   const generateAnnotatedCode = (filePath: string) => {
     const symbols = groupedFiles[filePath] || [];
-    const className = filePath.split('/').pop()?.replace('.java', '') || 'Service';
+    const { className, ext } = getFileMetadata(filePath);
+    const isTSorJS = ext === 'ts' || ext === 'tsx' || ext === 'js' || ext === 'jsx';
+    const isPython = ext === 'py';
+    const isGo = ext === 'go';
     
     // Find matching stories if methods correlate
     const matchingStory = userStories.find(story => 
-      story.code_pointers && story.code_pointers.some(cp => cp.file.includes(className))
+      story.code_pointers && story.code_pointers.some(cp => cp.file.toLowerCase().includes(className.toLowerCase()))
     );
 
-    const lines = [
-      `package com.enterprise;`,
-      ``
-    ];
+    const lines: string[] = [];
 
     if (matchingStory) {
-      lines.push(`/**`);
-      lines.push(` * @Requirement ${matchingStory.id}`);
-      lines.push(` * As a ${matchingStory.role}, I want to ${matchingStory.action} so that ${matchingStory.benefit}`);
-      lines.push(` */`);
+      if (isPython) {
+        lines.push(`"""`);
+        lines.push(`Requirement: ${matchingStory.id}`);
+        lines.push(`As a ${matchingStory.role}, I want to ${matchingStory.action} so that ${matchingStory.benefit}`);
+        lines.push(`"""`);
+      } else {
+        lines.push(`/**`);
+        lines.push(` * @Requirement ${matchingStory.id}`);
+        lines.push(` * As a ${matchingStory.role}, I want to ${matchingStory.action} so that ${matchingStory.benefit}`);
+        lines.push(` */`);
+      }
     }
 
-    lines.push(`public class ${className} {`);
+    if (isTSorJS) {
+      lines.push(`export class ${className} {`);
+    } else if (isPython) {
+      lines.push(`class ${className}:`);
+    } else if (isGo) {
+      lines.push(`package main`);
+      lines.push(``);
+      lines.push(`type ${className} struct {}`);
+      lines.push(``);
+    } else {
+      lines.push(`package com.enterprise;`);
+      lines.push(``);
+      lines.push(`public class ${className} {`);
+    }
     lines.push(``);
 
     symbols.forEach(sym => {
       if (sym.kind !== 'class' && sym.name) {
         const methodStory = userStories.find(story => 
           story.code_pointers && story.code_pointers.some(cp => 
-            cp.file.includes(className) && cp.symbols.includes(sym.name)
+            cp.file.toLowerCase().includes(className.toLowerCase()) && cp.symbols.includes(sym.name)
           )
         ) || matchingStory;
 
-        if (methodStory) {
-          lines.push(`    /**`);
-          lines.push(`     * Mapped to requirements check: ${methodStory.id}`);
-          lines.push(`     * Acceptance criteria verified: true`);
-          lines.push(`     */`);
+        if (isTSorJS) {
+          if (methodStory) {
+            lines.push(`    /**`);
+            lines.push(`     * Mapped to requirements check: ${methodStory.id}`);
+            lines.push(`     * Acceptance criteria verified: true`);
+            lines.push(`     */`);
+          }
+          lines.push(`    public ${sym.name}${sym.signature || '()'} {`);
+          lines.push(`        // TODO: Auto-generated skeletal stub implementation`);
+          lines.push(`        console.log("Executing static stub: ${sym.name}");`);
+          lines.push(`    }`);
+        } else if (isPython) {
+          let sig = sym.signature || '()';
+          if (sig.startsWith('(')) {
+            sig = sig === '()' ? '(self)' : `(self, ${sig.slice(1)}`;
+          } else {
+            sig = '(self)';
+          }
+          lines.push(`    def ${sym.name}${sig}:`);
+          if (methodStory) {
+            lines.push(`        """`);
+            lines.push(`        Mapped to requirements check: ${methodStory.id}`);
+            lines.push(`        Acceptance criteria verified: true`);
+            lines.push(`        """`);
+          }
+          lines.push(`        # TODO: Auto-generated skeletal stub implementation`);
+          lines.push(`        print("Executing static stub: ${sym.name}")`);
+        } else if (isGo) {
+          const capitalizedMethodName = sym.name.charAt(0).toUpperCase() + sym.name.slice(1);
+          if (methodStory) {
+            lines.push(`// Mapped to requirements check: ${methodStory.id}`);
+            lines.push(`// Acceptance criteria verified: true`);
+          }
+          lines.push(`func (c *${className}) ${capitalizedMethodName}${sym.signature || '()'} {`);
+          lines.push(`    // TODO: Auto-generated skeletal stub implementation`);
+          lines.push(`    println("Executing static stub: ${sym.name}")`);
+          lines.push(`}`);
+        } else {
+          if (methodStory) {
+            lines.push(`    /**`);
+            lines.push(`     * Mapped to requirements check: ${methodStory.id}`);
+            lines.push(`     * Acceptance criteria verified: true`);
+            lines.push(`     */`);
+          }
+          lines.push(`    public void ${sym.name}${sym.signature || '()'} {`);
+          lines.push(`        // TODO: Auto-generated skeletal stub implementation`);
+          lines.push(`        System.out.println("Executing static stub: ${sym.name}");`);
+          lines.push(`    }`);
         }
-        lines.push(`    public void ${sym.name}${sym.signature || '()'} {`);
-        lines.push(`        // TODO: Auto-generated skeletal stub implementation`);
-        lines.push(`        System.out.println("Executing static stub: ${sym.name}");`);
-        lines.push(`    }`);
         lines.push(``);
       }
     });
 
-    lines.push(`}`);
+    if (!isPython && !isGo) {
+      lines.push(`}`);
+    }
     return lines.join('\n');
   };
 
@@ -153,10 +271,11 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-[fadeIn_0.5s_ease-out] select-none h-[calc(100vh-12rem)]">
       
       {/* 1. Left Sidebar: Traceability Tree */}
-      <div className="lg:col-span-1 bg-slate-950/40 border border-borderLine rounded-xl p-5 flex flex-col justify-between">
+      <div className="relative lg:col-span-1 bg-white border border-sfBorder rounded-xl p-5 flex flex-col justify-between">
+        <InfoTooltip text="Browse files and symbols extracted from AST parsing; select one to preview its purified and annotated code." className="absolute top-3 right-3" />
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-1.5 border-b border-slate-900 pb-2">
-            <Folder className="w-3.5 h-3.5 text-blue-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-sfTextMuted mb-4 flex items-center gap-1.5 border-b border-sfBorder pb-2">
+            <Folder className="w-3.5 h-3.5 text-sfBlue" />
             <span>Traceability Tree</span>
           </h3>
 
@@ -175,21 +294,21 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
                       toggleNode(path);
                     }}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-all ${
-                      isSelected 
-                        ? 'bg-blue-600/10 text-blue-400 font-bold border border-blue-500/20' 
-                        : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
+                      isSelected
+                        ? 'bg-sfBlue/10 text-sfBlue font-bold border border-sfBlue/20'
+                        : 'text-sfTextMuted hover:bg-background hover:text-sfTextPrimary'
                     }`}
                   >
                     {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                    <FileCode className="w-4 h-4 shrink-0 text-slate-500" />
+                    <FileCode className="w-4 h-4 shrink-0 text-sfTextMuted" />
                     <span className="truncate">{filename}</span>
                   </div>
 
                   {isExpanded && (
-                    <div className="pl-6 mt-1 space-y-1 text-[10px] text-slate-500 border-l border-slate-900 ml-4 pb-2">
+                    <div className="pl-6 mt-1 space-y-1 text-[10px] text-sfTextMuted border-l border-sfBorder ml-4 pb-2">
                       {symbols.map((sym, idx) => (
-                        <div key={idx} className="flex items-center gap-1 py-1 truncate hover:text-slate-300 cursor-pointer">
-                          <Code2 className="w-3 h-3 text-slate-600" />
+                        <div key={idx} className="flex items-center gap-1 py-1 truncate hover:text-sfTextPrimary cursor-pointer">
+                          <Code2 className="w-3 h-3 text-sfTextMuted" />
                           <span>{sym.name}() (line {sym.line})</span>
                         </div>
                       ))}
@@ -200,7 +319,7 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
             })}
 
             {filePaths.length === 0 && (
-              <div className="text-slate-600 italic text-xs py-8 text-center">
+              <div className="text-sfTextMuted italic text-xs py-8 text-center">
                 No AST codebase files mapped. Ingest codebase to generate tree.
               </div>
             )}
@@ -211,7 +330,7 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
         <button
           onClick={handleDownload}
           disabled={isDownloading || filePaths.length === 0}
-          className="flex items-center justify-center gap-2 w-full mt-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold transition-all disabled:opacity-50 shadow-lg shadow-blue-600/15"
+          className="flex items-center justify-center gap-2 w-full mt-4 py-2 bg-sfBlue hover:bg-sfBlueHover text-white rounded text-xs font-bold transition-all disabled:opacity-50 shadow-sm"
         >
           {isDownloading ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -223,37 +342,43 @@ export default function CodeViewer({ astSymbols = [], userStories = [] }: CodeVi
       </div>
 
       {/* 2. Right: Side-by-side Unified Diff Viewer */}
-      <div className="lg:col-span-3 flex flex-col h-full bg-slate-950/20 border border-borderLine rounded-xl overflow-hidden">
-        
+      <div className="lg:col-span-3 flex flex-col h-full bg-white border border-sfBorder rounded-xl overflow-hidden">
+
         {/* Diff Viewer Title header */}
-        <div className="bg-slate-950/60 px-5 py-3 border-b border-borderLine flex items-center justify-between font-mono text-[10px] text-slate-500">
+        <div className="bg-background px-5 py-3 border-b border-sfBorder flex items-center justify-between font-mono text-[10px] text-sfTextMuted">
           <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-blue-500" />
-            <span className="text-slate-300 font-semibold">{selectedFile || 'No file selected'}</span>
+            <FileText className="w-4 h-4 text-sfBlue" />
+            <span className="text-sfTextPrimary font-semibold">{selectedFile || 'No file selected'}</span>
           </div>
           <div>Unified Diff View Mode</div>
         </div>
 
         {/* Diff view grid */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-900 overflow-hidden font-mono text-[11px] leading-relaxed">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-sfBorder overflow-hidden font-mono text-[11px] leading-relaxed">
           {/* Left panel: Purified source code */}
           <div className="flex flex-col h-full overflow-hidden">
-            <div className="bg-slate-950/40 px-4 py-1.5 text-[9px] uppercase tracking-wider text-slate-500 border-b border-slate-900/60 flex items-center justify-between">
+            <div className="bg-background px-4 py-1.5 text-[9px] uppercase tracking-wider text-sfTextMuted border-b border-sfBorder flex items-center justify-between">
               <span>Purified Source (ZDR Compliance)</span>
-              <span className="text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/15 uppercase">comments stripped</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sfError font-bold bg-sfErrorBg px-2 py-0.5 rounded border border-sfError/20 uppercase">comments stripped</span>
+                <InfoTooltip text="Shows source code with implementation comments stripped out to satisfy Zero Data Retention compliance requirements." />
+              </div>
             </div>
-            <pre className="flex-1 p-4 overflow-auto text-slate-400 bg-slate-950/30">
+            <pre className="flex-1 p-4 overflow-auto text-sfTextMuted bg-background">
               <code>{selectedFile ? generatePurifiedCode(selectedFile) : '// Select a file in the tree to preview'}</code>
             </pre>
           </div>
 
           {/* Right panel: Annotated code blocks */}
-          <div className="flex flex-col h-full overflow-hidden bg-slate-950/5">
-            <div className="bg-slate-950/40 px-4 py-1.5 text-[9px] uppercase tracking-wider text-slate-500 border-b border-slate-900/60 flex items-center justify-between">
+          <div className="flex flex-col h-full overflow-hidden bg-white">
+            <div className="bg-background px-4 py-1.5 text-[9px] uppercase tracking-wider text-sfTextMuted border-b border-sfBorder flex items-center justify-between">
               <span>Annotated Skeletal Stubs</span>
-              <span className="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/15 uppercase">Javadocs injected</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sfSuccess font-bold bg-sfSuccessBg px-2 py-0.5 rounded border border-sfSuccess/20 uppercase">Javadocs injected</span>
+                <InfoTooltip text="Shows skeletal method stubs with Javadoc comments auto-generated from linked user stories and acceptance criteria." />
+              </div>
             </div>
-            <pre className="flex-1 p-4 overflow-auto text-slate-300 bg-slate-950/10">
+            <pre className="flex-1 p-4 overflow-auto text-sfTextPrimary bg-background">
               <code>{selectedFile ? generateAnnotatedCode(selectedFile) : '// Select a file in the tree to preview'}</code>
             </pre>
           </div>

@@ -64,7 +64,7 @@ def dilute_syntactic_structure(file_content: str, file_ext: str) -> str:
             i += 1
             
         file_content = "".join(out)
-        file_content = re.sub(r'(System\.out\.print|console\.log|printf)\([\s\S]*?\);', '', file_content)
+        file_content = re.sub(r'\b(System\.out\.print|console\.log|printf)\([\s\S]*?\);', '', file_content)
         
     elif file_ext == '.py':
         out = []
@@ -168,25 +168,25 @@ def extract_and_purify_zip(zip_file_path: str, extract_target_dir: str):
             if file_count > settings.MAX_FILE_COUNT:
                 raise ValueError(f"Zip-Bomb detected: Decompressed file count exceeded limit ({settings.MAX_FILE_COUNT} files).")
 
-            # Reject symlink entries outright (zip-slip via symlink, not just path traversal)
-            if stat.S_ISLNK(member.external_attr >> 16):
-                raise PermissionError(f"Symlink entry rejected: '{member.filename}' is a symlink, not a regular file.")
-
-            # Directory Traversal Guardrail
+            # 1. Directory Traversal Guardrail
             # Standardize backslashes to forward slashes for cross-platform validation safety
             standardized_filename = member.filename.replace("\\", "/")
             normalized_path = os.path.normpath(standardized_filename)
             if normalized_path.startswith("..") or os.path.isabs(normalized_path):
                 raise PermissionError("Traversal exploit detected: Compressed path points outside execution boundary.")
                 
-            # Filter directories
+            # 2. Filter directories
             path_parts = set(normalized_path.split(os.sep))
             if path_parts.intersection(BLACK_LIST_DIRS):
                 continue
                 
-            # Filter non-functional extensions (Structural Elimination)
+            # 3. Filter non-functional extensions (Structural Elimination)
             if normalized_path.endswith(BLACK_LIST_EXTENSIONS):
                 continue
+
+            # 4. Reject symlink entries outright (run only on non-blacklisted files to avoid breaking node_modules symlink check)
+            if stat.S_ISLNK(member.external_attr >> 16):
+                raise PermissionError(f"Symlink entry rejected: '{member.filename}' is a symlink, not a regular file.")
                 
             # Skip directory entries explicitly to avoid reading contents
             if member.is_dir():

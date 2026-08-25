@@ -25,6 +25,8 @@ def compile_ast_ctags_index(purified_workspace_dir: str) -> List[Dict[str, Any]]
     cmd = [
         "ctags",
         "-R",                               # Recursive walk
+        "--exclude=.git",
+        "--exclude=.next",
         "--output-format=json",             # JSON streaming output format
         "--fields=+n+p+s+S+i",               # Output line numbers, scope, method signatures (S, not s), inheritance
         "--languages=Java,Python,C++,C,JavaScript,TypeScript",     # Target languages

@@ -53,7 +53,7 @@ def init_governance_db():
         zip_checksum TEXT NOT NULL,
         purified_size_bytes INTEGER NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (project_id) REFERENCES projects(id)
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     ''')
     
@@ -72,8 +72,8 @@ def init_governance_db():
         ripple_effects TEXT,  -- JSON string containing dependency mapping
         unhappy_paths TEXT,   -- JSON string containing exception constraints
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (project_id) REFERENCES projects(id),
-        FOREIGN KEY (codebase_version_id) REFERENCES codebase_versions(id)
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (codebase_version_id) REFERENCES codebase_versions(id) ON DELETE CASCADE
     );
     ''')
     
@@ -89,7 +89,35 @@ def init_governance_db():
         payload_hash TEXT NOT NULL,     -- SHA-256 hash of the payload
         block_signature TEXT NOT NULL,  -- HMAC-SHA256 of (payload_hash + prev_block_signature)
         prev_block_signature TEXT NOT NULL,
-        FOREIGN KEY (project_id) REFERENCES projects(id)
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    ''')
+    
+    # 5. Project Developers Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS project_developers (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        is_lead INTEGER DEFAULT 0,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    ''')
+    
+    # Alter backlog_items table to support assigned developer linking
+    try:
+        cursor.execute("ALTER TABLE backlog_items ADD COLUMN assigned_developer_id TEXT;")
+    except sqlite3.OperationalError:
+        pass
+
+    # 6. Backlog Item Assignments (Multi-Assignee join table)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS backlog_item_assignments (
+        backlog_item_id TEXT NOT NULL,
+        developer_id TEXT NOT NULL,
+        PRIMARY KEY (backlog_item_id, developer_id),
+        FOREIGN KEY (backlog_item_id) REFERENCES backlog_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (developer_id) REFERENCES project_developers(id) ON DELETE CASCADE
     );
     ''')
     

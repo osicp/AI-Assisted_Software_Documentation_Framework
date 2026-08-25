@@ -10,6 +10,12 @@ export interface CodePointer {
   symbols: string[];
 }
 
+export interface Developer {
+  id: string;
+  name: string;
+  is_lead: boolean;
+}
+
 export interface UserStory {
   id: string;
   epic_title?: string;
@@ -19,6 +25,7 @@ export interface UserStory {
   story_points: number;
   unhappy_paths: string[];
   code_pointers: CodePointer[];
+  assigned_developer_ids?: string[];
 }
 
 export interface ASTSymbol {
@@ -69,12 +76,26 @@ export interface AuditReport {
 }
 
 export interface TelemetryMetrics {
-  db_wal_latency_ms: number;
-  purification_compression_pct: number;
-  context_caching_savings_pct: number;
-  v_tax: number;
-  prompt_iterations: number;
-  corrective_prompts: number;
-  git_diff_distance: number;
-  validation_failures: number;
+  db_latency: string;
+  purification_compression: string;
+  avg_tokens_per_generation: string;
+  verification_tax: string;
+  prompt_iterations: string;
+  corrective_prompts: string;
+  git_diff_lines: string;
+  validation_failures: string;
+  percent_iterations: number;
+  percent_corrective: number;
+  percent_git: number;
+  percent_validation: number;
+  tokens_per_item: string;
+  inference_latency: string;
+  hallucination_drift: string;
+  cycle_time: string;
+  machine_latency: string;
+  scoping_duration: string;
+  raw_size_bytes: number;
+  purified_size_bytes: number;
+  prompt_tokens: number;
+  completion_tokens: number;
 }

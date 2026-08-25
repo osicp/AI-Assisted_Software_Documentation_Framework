@@ -144,12 +144,12 @@ The following matrix organizes the physical tasks required to build, test, and d
 *   **Structural Noise Purification Module**: Build the extraction script to execute **Structural Elimination**—dynamically scanning the unzipped directory tree and skipping the extraction of build, asset, and lock configurations (`node_modules`, `target`, `.git`). Combined with Syntactic Dilution (below), both stages together compress codebase disk size by **~35%**.
 *   **Syntactic Dilution Module**: Implement regex sweeps to strip comments, extraneous whitespace, and logging statements from codebase files.
 
-### Day 2: Static AST Symbol Indexing, Deductive SAR Clustering & Long-Context Caching Proxy
+### Day 2: Static AST Symbol Indexing, Deductive SAR Clustering & LLM Gateway Proxy
 *   **Universal Ctags Integration**: Write the background subprocess execution script to run `universal-ctags` over the purified directory. Save class, method, struct, and file-range boundaries to a cached database-backed symbol metadata catalog.
 *   **Intermediate Architectural Abstraction Layer (Actor Clustering)**: Implement **spaCy POS-tagging heuristics** inside `sbert_clustering.py` to extract actors following the narrative prefix "As a...". Use the locally executed SBERT model (`paraphrase-mpnet-base-v2`) to translate narrative user stories into high-dimensional semantic vectors and cluster them using **K-Means** to remove redundancies.
 *   **Deductive Software Architecture Recovery (SAR)**: Develop the mapping logic that maps the identified functional clusters into a standardized layered reference architecture (Presentation, Application, Domain, Technical Services).
 *   **Heuristic-based UML consistency checkers**: Integrate diagram consistency validators directly into `uml_generator.py` to map lifelines against class and method boundaries, catching mismatches natively.
-*   **FAU Trussed.ai proxy with Context Caching**: Configure OpenAI SDK bindings, branching on `settings.LLM_PROVIDER` so the documented offline fallback (LM Studio / local open-weight models) is actually reachable, not just described in `scrummap.env`:
+*   **FAU Trussed.ai proxy integration**: Configure OpenAI SDK bindings, branching on `settings.LLM_PROVIDER` so the documented offline fallback (LM Studio / local open-weight models) is actually reachable, not just described in `scrummap.env`:
     ```python
     from openai import OpenAI
     from backend.app.config import settings
@@ -245,50 +245,15 @@ Where $K_{ledger}$ (`LEDGER_HMAC_KEY`) is a secret stored outside `governance.db
 
 ---
 
-## 6. Caching Strategy (Gemini 2.5 Context Caching)
+## 6. Security & Costs Optimization (Workstation Hardening)
 
-### 6.1 Key-Value (KV) Context Caching Architecture
-Instead of reloading and analyzing the entire codebase representing millions of tokens for every subsequent requirement check or diagram rendering cycle, ScrumMap uses **Long-Context Caching** through the secure **FAU Trussed.ai proxy**.
-
-```
-                             [ First Request ]
-                                     │
-                    (Purified Logic Core + AST symbol map)
-                                     ▼
-                      ┌─────────────────────────────┐
-                      │    FAU HPC Trussed Proxy    │
-                      └──────────────┬──────────────┘
-                                     │
-                                     ▼
-                      ┌─────────────────────────────┐
-                      │ Google Gemini Context Cache │
-                      └──────────────┬──────────────┘
-                                     │ (Pre-warms in-memory cache)
-                                     ▼
-                             [ Next Requests ]
-                                     │
-                         (Only send delta request)
-                                     ▼
-                      ┌─────────────────────────────┐
-                      │   Cache Hit: 79% Savings    │
-                      └─────────────────────────────┘
-```
-
-1.  **Cache Registration (Exactly Once)**: The backend uploads the codebase's purified logical core and compiled ctags AST symbol maps to the FAU Trussed Gemini endpoint. The model registers this context in its active in-memory cache.
-2.  **Iterative Delta Query Execution**: For all subsequent user prompts, sprint backlog adjustments, and document compilation tasks, the frontend only sends the new requirement delta. Gemini executes the query against the cached logical core, returning results in seconds.
-3.  **Cost and Latency Reductions**: This strategy eliminates redundant token transmission, securing up to **79% token budget savings** and drastically reducing operational request latency.
-
----
-
-## 7. Security & Costs Optimization (Workstation Hardening)
-
-### 7.1 Secrets Management & Environment Isolation
+### 6.1 Secrets Management & Environment Isolation
 *   **Strict Host Configuration**: Private passwords and credentials are saved locally in `scrummap.env`. This file is added to the system `.gitignore` and is never committed to Version Control.
 *   **Public Templates**: The public repository only contains `scrummap.env.example`, which replaces sensitive parameters with safe dummy placeholders.
 *   **API Exposure Defenses**: All calls to the FAU Trussed.ai proxy are executed strictly server-side by the FastAPI worker. No backend API keys are exposed to the React Next.js client-side bundles.
 *   **Role-Key RBAC Enforcement**: Per-role access keys (`ROLE_KEY_PRODUCT_MANAGER`, `ROLE_KEY_SCRUM_MASTER`, `ROLE_KEY_LEAD_DEVELOPER`, `ROLE_KEY_SECURITY_AUDITOR`, `ROLE_KEY_SYSTEM_ADMIN`) are stored in `scrummap.env` alongside `TRUSSED_API_KEY` and are subject to the same never-commit handling. The backend derives every ledger `operator_id` from which key was presented (`backend/app/auth.py`), so client-supplied identity claims are never trusted directly.
 
-### 7.2 Workstation Security Hardening
+### 6.2 Workstation Security Hardening
 
 #### SQL Injection Defense: Parameterized Queries
 ScrumMap does not rely on a character/keyword blocklist to defend against SQL injection — blocklists of this kind are a well-known anti-pattern, since they're trivially bypassable (e.g. `1 OR 1=1` contains no special characters or SQL keywords) and simultaneously reject legitimate free text (a requirement like "the system shall **update** the user's session" contains both a blocked keyword and a blocked character).
@@ -313,44 +278,40 @@ extract_and_purify_zip(zip_file_path, extract_target_dir)
 ```
 `tempfile.mkdtemp` creates the directory with mode `0700` by default, so even if two uploads are being processed concurrently, neither can read the other's in-progress extraction — and (combined with `HOST_UPLOAD_DIR` itself being `chmod 700` on the host) no other local account on the workstation can list or read into `UPLOAD_DIR` at all.
 
-### 7.3 Cost-Optimization Design
+### 6.3 Cost-Optimization Design
 *   **Local NLP Model Execution**: The framework executes intensive NLP tasks—such as part-of-speech tagging (spaCy), sentence embeddings (SBERT), and K-Means clustering—locally on the workstation using free, open-source models, reserving LLM credits for advanced reasoning.
 *   **Token Trim Heuristics**: Syntactic Dilution (comment/whitespace/log stripping) reduces LLM-facing token counts, on top of the disk-size reduction already achieved by Structural Elimination. This is a distinct metric measured in tokens rather than bytes — removing whole directories and shrinking the verbosity of remaining files affect different budgets (disk storage vs. LLM context window).
 
-### 7.4 Security Audit Plan
+### 6.4 Security Audit Plan
 Security auditors execute `backend/ledger_verifier.py` to audit database integrity. This utility recalculates backward-chained HMAC-SHA256 signatures, flagging manual row edits or administrative log deletions.
 
-### 7.5 Student Token Billing & Cost Estimation
+### 6.5 Student Token Billing & Cost Estimation
 Based on FAU Trussed.ai pricing guidelines, bills are compiled per million tokens (input + output):
-*   **Workstation Scale**: Assuming a typical medium codebase is indexed once (producing 350,000 cached tokens) and is queried 5 times during a sprint:
-    *   *Without Caching*: 5 queries × 350,000 tokens = 1,750,000 tokens.
-    *   *With Context Caching (79% Token Savings)*: 1 cache write (350,000 tokens) + 5 delta queries (approx. 5,000 tokens each = 25,000 tokens) = 375,000 tokens.
-    *   *Savings*: (1,750,000 − 375,000) / 1,750,000 ≈ **78.6%**, rounding to the ~79% target even at this low reuse count — savings improve further as the same cached context is queried more times within a sprint. Reduces the student's default **$10/month budget** footprint from heavy development costs to pennies.
+*   **Workstation Scale**: Assuming a typical medium codebase is indexed once, ScrumMap's SpecMap and hierarchical filtering allow the LLM to process query deltas referencing small, targeted class and function context files rather than reloading the entire repository context. This maintains a tiny token footprint and helps reduce the student's default **$10/month budget** footprint from heavy development costs to pennies.
 
 ---
 
-## 8. Success Metrics & Performance KPIs
+## 7. Success Metrics & Performance KPIs
 
-The system evaluates operational success and pipeline stability using four standardized Performance KPIs:
+The system evaluates operational success and pipeline stability using three standardized Performance KPIs:
 
 | Success Category | Performance KPI | Target Threshold | Verification Method |
 | :--- | :--- | :--- | :--- |
-| **System Latency** | DB WAL transaction write latency | **< 5ms** | Background logging timers (Section 7.3) |
-| **Data Compression** | Combined structural + syntactic size reduction | **~35% size reduction** | File-size audit counters (Section 7.3) |
-| **Compute Savings** | LLM API token budget savings | **79% reduction** | Context Caching graph monitors (Section 7.4) |
-| **Human Efficiency** | Verification Tax ($V_{tax}$) scaling | **V_tax < 5 for simple tasks** | Telemetry logs (Section 7.4) |
+| **System Latency** | DB WAL transaction write latency | **< 5ms** | Background logging timers (Section 6.3) |
+| **Data Compression** | Combined structural + syntactic size reduction | **~35% size reduction** | File-size audit counters (Section 6.3) |
+| **Human Efficiency** | Verification Tax ($V_{tax}$) scaling | **V_tax < 5 for simple tasks** | Telemetry logs (Section 6.4) |
 
 ---
 
-## 9. Technical Decision Rationale (Why We Built This Way)
+## 8. Technical Decision Rationale (Why We Built This Way)
 
-### 9.1 Database Engine: SQLite vs. PostgreSQL
+### 8.1 Database Engine: SQLite vs. PostgreSQL
 *   **The Decision**: **SQLite** was chosen as ScrumMap's core relational database engine.
 *   **The Rationale**: Traditional enterprise applications rely on PostgreSQL, which requires deploying a separate database container, exposing local network sockets, and configuring network credentials.
     *   *SQLite is serverless and runs in-process*, reading and writing transaction blocks directly to host storage. This avoids local network latency and eliminates connection pool overhead.
     *   *SQLite simplifies workstation state*: the complete system state, interactions, and audit ledger are encapsulated in a single, portable database file (`governance.db`), making backups easy.
 
-### 9.2 Containerization Daemon: Podman vs. Docker
+### 8.2 Containerization Daemon: Podman vs. Docker
 *   **The Decision**: **Podman** was selected as the mandated container runtime.
 *   **The Rationale**: Docker requires a background root-privileged daemon to manage container files. This daemon represents a significant security vulnerability on corporate developer workstations.
     *   *Podman runs daemonless and rootless in user-space*, enforcing secure host boundary isolation.

@@ -49,16 +49,17 @@ def compile_pdf_report(
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Query cryptographic ledger block for this project
+    # Query cryptographic ledger block and developers for this project
     ledger_info = None
+    dev_names_map = {}
     if project_id:
         try:
             from backend.app.ledger import get_db_connection
-            conn = get_db_connection()
-            # Enable row factory to read column names
             import sqlite3
+            conn = get_db_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+            
             cursor.execute(
                 "SELECT id, timestamp, operator_id, payload_hash, block_signature FROM write_ahead_ledger WHERE project_id = ? ORDER BY id DESC LIMIT 1",
                 (project_id,)
@@ -72,6 +73,12 @@ def compile_pdf_report(
                     "hash": row["payload_hash"],
                     "signature": row["block_signature"]
                 }
+                
+            cursor.execute("SELECT id, name FROM project_developers WHERE project_id = ?", (project_id,))
+            rows = cursor.fetchall()
+            for r in rows:
+                dev_names_map[r["id"]] = r["name"]
+                
             conn.close()
         except Exception:
             pass
@@ -129,8 +136,12 @@ def compile_pdf_report(
         elif benefit_str.lower().startswith("so "):
             benefit_str = benefit_str[3:]
 
+        assigned_ids = story.get("assigned_developer_ids") or []
+        assigned_names = [dev_names_map.get(d_id, d_id) for d_id in assigned_ids if d_id in dev_names_map]
+        assignees_text = ", ".join(assigned_names) if assigned_names else "Unassigned"
+
         pdf.set_font("helvetica", "B", 11)
-        pdf.multi_cell(0, 6, f"{sid}: As a {role_str}, I want to {action_str} so that {benefit_str} [Est: {pts} SP]", new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 6, f"{sid}: As a {role_str}, I want to {action_str} so that {benefit_str} [Est: {pts} SP] [Assignees: {assignees_text}]", new_x="LMARGIN", new_y="NEXT")
         
         # Unhappy Paths
         pdf.set_font("helvetica", "I", 9)
@@ -211,42 +222,68 @@ def compile_pdf_report(
         pdf.ln(4)
         
         # Recalculate schedule values identically to the frontend Gantt algorithm
-        dev_a_time = 0
-        dev_b_time = 0
-        total_days = 10
-        
-        # Render a structured PDF Milestones Table
-        pdf.set_font("helvetica", "B", 10)
-        pdf.set_fill_color(241, 245, 249) # Light slate background for headers
-        pdf.cell(30, 8, "Story ID", border=1, fill=True)
-        pdf.cell(50, 8, "Schedule Window", border=1, fill=True)
-        pdf.cell(110, 8, "Target Milestone", border=1, fill=True, new_x="LMARGIN", new_y="NEXT")
-        
-        pdf.set_font("helvetica", "", 9)
-        for idx, story in enumerate(user_stories):
+        # First compute the totalDays scale across all developers
+        temp_dev_times = {"unassigned": 0.0}
+        for story in user_stories:
             pts = story.get("story_points", 3.0)
-            
-            # Map story points to duration days matching frontend Gantt logic
             if pts <= 1:
-                duration = 1
+                duration = 1.0
             elif pts <= 2:
                 duration = 1.5
             elif pts <= 3:
-                duration = 2
+                duration = 2.0
             elif pts <= 5:
-                duration = 3
+                duration = 3.0
             else:
-                duration = 5
-                
-            if idx % 2 == 0:
-                start = dev_a_time
-                dev_a_time = min(total_days, dev_a_time + duration)
+                duration = 5.0
+            
+            dev_ids = story.get("assigned_developer_ids") or []
+            if not dev_ids:
+                temp_dev_times["unassigned"] += duration
             else:
-                start = dev_b_time
-                dev_b_time = min(total_days, dev_b_time + duration)
+                for d_id in dev_ids:
+                    if d_id not in temp_dev_times:
+                        temp_dev_times[d_id] = 0.0
+                    temp_dev_times[d_id] += duration
+        total_days = max(10.0, *temp_dev_times.values())
+
+        # Render a structured PDF Milestones Table
+        pdf.set_font("helvetica", "B", 10)
+        pdf.set_fill_color(241, 245, 249) # Light slate background for headers
+        pdf.cell(25, 8, "Story ID", border=1, fill=True)
+        pdf.cell(45, 8, "Schedule Window", border=1, fill=True)
+        pdf.cell(50, 8, "Assignees", border=1, fill=True)
+        pdf.cell(70, 8, "Target Milestone", border=1, fill=True, new_x="LMARGIN", new_y="NEXT")
+        
+        pdf.set_font("helvetica", "", 9)
+        current_dev_times = {"unassigned": 0.0}
+        for story in user_stories:
+            pts = story.get("story_points", 3.0)
+            if pts <= 1:
+                duration = 1.0
+            elif pts <= 2:
+                duration = 1.5
+            elif pts <= 3:
+                duration = 2.0
+            elif pts <= 5:
+                duration = 3.0
+            else:
+                duration = 5.0
                 
-            end = min(total_days, start + duration)
-            week_num = 1 if start < 5 else 2
+            dev_ids = story.get("assigned_developer_ids") or []
+            if not dev_ids:
+                start = current_dev_times["unassigned"]
+                current_dev_times["unassigned"] = start + duration
+            else:
+                for d_id in dev_ids:
+                    if d_id not in current_dev_times:
+                        current_dev_times[d_id] = 0.0
+                start = max(current_dev_times.get(d_id, 0.0) for d_id in dev_ids)
+                for d_id in dev_ids:
+                    current_dev_times[d_id] = start + duration
+                    
+            end = start + duration
+            week_num = int(start // 5) + 1
             
             # Resolve target class name using the backticks / filename parser
             action_str = story.get("action", "")
@@ -258,16 +295,23 @@ def compile_pdf_report(
                 pointers = story.get("code_pointers", [])
                 if pointers and isinstance(pointers, list):
                     file_path = pointers[0].get("file", "")
-                    filename = file_path.split("/")[-1].replace(".java", "") if "/" in file_path else file_path.replace(".java", "")
-                    target_name = filename if filename else "Module"
+                    filename = file_path.split("/")[-1] if "/" in file_path else file_path
+                    parts = filename.split(".")
+                    base_name = ".".join(parts[:-1]) if len(parts) > 1 else filename
+                    target_name = base_name if base_name else "Module"
                 else:
                     clean_action = re.sub(r'^(implement a new |implement a |dispatch |handle |manage |manage connection |throwing a specific |using a cached state |dispatch transaction outcomes via a )', '', action_str, flags=re.IGNORECASE)
                     target_name = " ".join(clean_action.split()[:2])
             
+            assigned_ids = story.get("assigned_developer_ids") or []
+            assigned_names = [dev_names_map.get(d_id, d_id) for d_id in assigned_ids if d_id in dev_names_map]
+            assignee_names_str = ", ".join(assigned_names) if assigned_names else "Unassigned"
+            
             # Render Milestone Row
-            pdf.cell(30, 8, story.get("id", "STORY-XX"), border=1)
-            pdf.cell(50, 8, f"Sprint W{week_num} (Day {int(start) + 1}-{int(end)})", border=1)
-            pdf.cell(110, 8, f"'{target_name}'", border=1, new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(25, 8, story.get("id", "STORY-XX"), border=1)
+            pdf.cell(45, 8, f"Sprint W{week_num} (Day {int(start) + 1}-{int(end)})", border=1)
+            pdf.cell(50, 8, assignee_names_str, border=1)
+            pdf.cell(70, 8, f"'{target_name}'", border=1, new_x="LMARGIN", new_y="NEXT")
             
         pdf.ln(10)
         
@@ -275,52 +319,66 @@ def compile_pdf_report(
     if class_diagram_url or sequence_diagram_url:
         import httpx
         import io
+        from PIL import Image as PILImage
         
+        def _embed_diagram_with_scaling(pdf_obj, url, title_label):
+            pdf_obj.add_page()
+            pdf_obj.set_font("helvetica", "B", 14)
+            pdf_obj.cell(0, 10, title_label, new_x="LMARGIN", new_y="NEXT")
+            pdf_obj.line(10, pdf_obj.get_y(), 200, pdf_obj.get_y())
+            pdf_obj.ln(5)
+            
+            img_embedded = False
+            if _is_trusted_diagram_url(url):
+                try:
+                    resp = httpx.get(url, timeout=10.0)
+                    if resp.status_code == 200:
+                        img_data = io.BytesIO(resp.content)
+                        with PILImage.open(img_data) as img:
+                            img_w, img_h = img.size
+                        
+                        # Portrait page printable area (A4 bounds: W=190 max, H=240 max printable)
+                        max_w = 180
+                        max_h = 220
+                        
+                        # Calculate proportional scaling factor
+                        ratio = min(max_w / img_w, max_h / img_h)
+                        w = img_w * ratio
+                        h = img_h * ratio
+                        
+                        # If diagram is scaled down significantly, append warning
+                        if ratio < 0.6:
+                            pdf_obj.set_font("helvetica", "I", 8)
+                            pdf_obj.set_text_color(180, 83, 9) # Amber warning color
+                            pdf_obj.multi_cell(
+                                0, 4, 
+                                "Warning: This diagram has been automatically scaled down to fit print margins and page boundaries. "
+                                "Large codebases may have reduced readability on print. Refer to the digital ScrumMap UI for full-scale panning and zoom.",
+                                new_x="LMARGIN", new_y="NEXT"
+                            )
+                            pdf_obj.set_text_color(0, 0, 0)
+                            pdf_obj.ln(2)
+                        
+                        img_data.seek(0)
+                        pdf_obj.image(img_data, w=w, h=h)
+                        img_embedded = True
+                except Exception:
+                    pass
+
+            if not img_embedded:
+                pdf_obj.set_font("helvetica", "I", 10)
+                pdf_obj.multi_cell(
+                    0, 6, 
+                    f"{title_label} URL: {url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", 
+                    new_x="LMARGIN", new_y="NEXT"
+                )
+            pdf_obj.ln(10)
+
         if class_diagram_url:
-            pdf.add_page()
-            pdf.set_font("helvetica", "B", 14)
-            pdf.cell(0, 10, "System Architecture: Class Diagram", new_x="LMARGIN", new_y="NEXT")
-            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-            pdf.ln(5)
+            _embed_diagram_with_scaling(pdf, class_diagram_url, "System Architecture: Class Diagram")
             
-            img_embedded = False
-            if _is_trusted_diagram_url(class_diagram_url):
-                try:
-                    resp = httpx.get(class_diagram_url, timeout=10.0)
-                    if resp.status_code == 200:
-                        img_data = io.BytesIO(resp.content)
-                        pdf.image(img_data, w=180)
-                        img_embedded = True
-                except Exception:
-                    pass
-
-            if not img_embedded:
-                pdf.set_font("helvetica", "I", 10)
-                pdf.multi_cell(0, 6, f"Class Diagram URL: {class_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")
-            pdf.ln(10)
-
         if sequence_diagram_url:
-            pdf.add_page()
-            pdf.set_font("helvetica", "B", 14)
-            pdf.cell(0, 10, "System Behavior: Sequence Diagram", new_x="LMARGIN", new_y="NEXT")
-            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-            pdf.ln(5)
-            
-            img_embedded = False
-            if _is_trusted_diagram_url(sequence_diagram_url):
-                try:
-                    resp = httpx.get(sequence_diagram_url, timeout=10.0)
-                    if resp.status_code == 200:
-                        img_data = io.BytesIO(resp.content)
-                        pdf.image(img_data, w=180)
-                        img_embedded = True
-                except Exception:
-                    pass
-
-            if not img_embedded:
-                pdf.set_font("helvetica", "I", 10)
-                pdf.multi_cell(0, 6, f"Sequence Diagram URL: {sequence_diagram_url}\n(Note: Visual diagram embedding skipped due to connection timeout or rendering server offline.)", new_x="LMARGIN", new_y="NEXT")
-            pdf.ln(10)
+            _embed_diagram_with_scaling(pdf, sequence_diagram_url, "System Behavior: Sequence Diagram")
         
     return bytes(pdf.output())
 
