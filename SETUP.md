@@ -6,7 +6,7 @@ This document serves as the step-by-step engineering playbook for **ScrumMap**. 
 
 ## 1. On-Premises Tool Installation & Prerequisites
 
-To successfully build and deploy ScrumMap, the host workstation must have several native packages installed. Run the platform-specific instructions below to set up your environment.
+To successfully build and deploy ScrumMap, the host workstation must have several native packages installed. Run the platform-specific instructions below to set up your environment. Installing and running ScrumMap requires a one-time disk footprint of roughly 2GB and a minimum of 8GB of RAM. This is due to the installation of Python, universal-ctags, and Podman, as well as the build and runtime images for the backend and frontend.
 
 ### 1.1 Python 3.12+ (Core Application Layer)
 The backend requires a modern, thread-safe Python 3.12+ runtime environment.

@@ -19,13 +19,13 @@ To solve these challenges, this project proposes integrating locally hosted LLMs
 - Map business requirements directly to granular, developer-ready task tickets
 - Generate source-code annotation/explanation with strict governance and security compliance
 
-Unlike typical Retrieval-Augmented Generation (RAG) frameworks that rely on vector similarity metrics to retrieve code snippets for large language models, HIEScrum employs an advanced hybrid approach that combines semantic understanding with architectural strictness.
+Unlike typical Retrieval-Augmented Generation (RAG) frameworks that rely on vector similarity metrics to retrieve code snippets for large language models, **ScrumMap** employs an advanced hybrid approach that combines semantic understanding with architectural strictness.
 
 ---
 
 ## How It Works
 
-ScrumMap is a framework that prioritizes deterministic API-First execution over Probabilistic-Interface interaction. It operates entirely within a single workstation's environment where all services are isolated inside a unified rootless `Podman pod`. First, it ingests the raw binary multi-part stream of the `.zip` archive in fixed **1MB chunks** and pipes them directly to temporary storage on disk. During decompression, it purifies functional components. Once decompressed, it constructs high-resolution AST traceability indexes. To comply with **Zero-Data Retention**, immediately after static AST symbol extraction and intermediate schema caching are completed, the framework wipes the **raw codebase folders and binary files**. Then, the indexed codebase is fed to a **optimizer/verification loop** to generate sprint-planning interactions, sequence modeling rounds, and documentation generation events. In addition, all operations from a codebase ingestion event (`ZIP_CODEBASE_UPLOAD`) to a requirements optimization query are hashed and recorded in a tamper-proof `SQLite database` transaction ledger to guarantee absolute enterprise audit accountability.
+ScrumMap is a framework that prioritizes deterministic API-First execution over Probabilistic-Interface interaction. It operates entirely within a single workstation's environment where all services are isolated inside a unified rootless `Podman pod`. First, it ingests the raw binary multi-part stream of the `.zip` archive in fixed **1MB chunks** and pipes them directly to temporary storage on disk. During decompression, it purifies functional components. Once decompressed, it constructs high-resolution AST traceability indexes. To comply with **Zero-Data Retention**, immediately after static AST symbol extraction and intermediate schema caching are completed, the framework recursively wipes the **raw unzipped codebase directories and files** from disk. Skeletal stubs and annotations are generated dynamically from cached database symbol indexes, ensuring no source code is retained on disk. Stakeholder's requirements are also processed and refined using deterministic rules. and then evaluated against the compiled codebase AST indexes and database schemas. This is then fed into the LLM to translate the gap analysis into developer-ready-task cards, any ambiguities in this step is resolved interactively with a human-in-the-loop layer. All operations from a codebase ingestion event (`ZIP_CODEBASE_UPLOAD`) to a requirements optimization query are hashed and recorded in a tamper-proof `SQLite database` transaction ledger to guarantee absolute enterprise audit accountability.
 
 ```
 ┌─────────────────------─┐ 1. Structural Elim. & Syntactic Dil. ┌────────────────────────┐
@@ -116,13 +116,29 @@ The framework processes source files and outputs a traceable, properly annotated
 
 ### Step 7: Local Rendering & PDF Output
 To finalize the sprint cycle, the framework aggregates the technical documentation, PlantUML diagrams, enriched Jira stories, edge cases, and code pointers into a highly polished, corporate-compliant report:
-* The data is compiled into standard **DocBook XML**.
-* An XSLT engine (`xsltproc`) is used to transform the XML data into Formatting Objects (XSL-FO) or a clean LaTeX structure. 
-* A professionally styled **PDF document** is delivered directly to the dashboard, either using `Apache FOP` (Formatting Objects Processor), or `Pandoc` and running it through **PDFLaTeX**.
+* The report is compiled using a lightweight, Python-native **`fpdf2` document compiler** module.
+* Diagrams are proportionally scaled to fit A4 print margins, with automated readability warnings appended if a diagram is scaled down significantly.
+* A professionally styled **PDF document** is generated and delivered directly to the dashboard, avoiding heavy external compiler toolchains (such as Java-based Apache FOP or LaTeX) on the host workstation.
 
 ---
 
-## Deployed Link
+## Shortcommings
+
+While ScrumMap successfully automates the requirement-to-backlog pipeline within a secure corporate workstation, it has the following operational and architectural constraints:
+* **Dependency on Remote PlantUML Renderer:** Although the core code purification and indexing occur entirely locally and offline, diagram rendering relies on the public PlantUML proxy (`http://www.plantuml.com/plantuml/`). In a strict, air-gapped offline corporate environment, diagram image rendering will fail unless a dedicated, local Java/Graphviz PlantUML container is spun up inside the pod.
+* **No Native Live Git Integrations:** The generated stubs and annotated code files are delivered as a downloaded `.zip` package. The platform does not directly write modifications to the local directory's git branches or automatically commit updates, requiring manual developer copy-paste or extraction.
+* **Lack of Scalability:** ScrumMap is designed for a single workstation and a single developer at a time. It does not support multiple developers working on the same project simultaneously or across multiple workstations. It also does not support multiple projects running simultaneously.
+* **Lack of Database Encryption:** The backend does not support database encryption, which is a security concern for sensitive projects.
+* **Lack of Cryptographic Shredding:** The backend does not support cryptographic shredding, which is a security concern for sensitive projects.
+
+---
+
+## Future Scope
+
+To address current limitations and expand ScrumMap's enterprise capabilities, the following features are planned for future iterations:
+* **Fully Offline PlantUML Server Container:** Integrate a local, Java/Graphviz-based PlantUML server directly inside the rootless `scrummap-pod` container definition. This will enable completely air-gapped workstations to render vector SVGs natively without making outbound calls to the public PlantUML proxy.
+* **Native Workspace Git Bindings:** Add write permissions to local workstation folder mounts under Git, allowing ScrumMap to automatically create feature branches, inject inline annotations directly into the codebase, and stage commit drafts for developer review.
+* **Distributed Multi-Workstation & On-Premise LLM Cluster:** Scale ScrumMap from an isolated single-workstation container pod to a distributed system running across many workstations (operating both on-premise and securely off-premise). Implement real-time synchronization channels for developer collaboration and route inference queries to a shared local LLM cluster housed entirely on-premise to preserve full data sovereignty.
 
 ---
 

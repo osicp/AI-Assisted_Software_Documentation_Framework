@@ -15,7 +15,7 @@ This document establishes the step-by-step execution roadmap, system specificati
 ### 1.2 Constraints
 1.  **Workstation Isolation**: The entire system must execute locally on a single corporate developer workstation with **zero internet dependencies**.
 2.  **Codebase Scale**: The ingestion pipeline must support massive industrial repositories up to **2.0 GB** in compressed size without memory-related container crashes.
-3.  **Zero-Data Retention (ZDR)**: Raw uploaded ZIP archives and structurally-eliminated build/asset directories (`node_modules`, `.git`, `target`, `dist`, etc.) must be deleted immediately after purification. The purified, diluted source tree — with proprietary build artifacts, binaries, and stripped comments/logging already removed — is retained on disk, mapped to its `codebase_versions` row, until the project or version is explicitly deleted.
+3.  **Zero-Data Retention (ZDR)**: Raw uploaded ZIP archives and decompressed repository folders must be recursively deleted immediately after AST symbol extraction and intermediate schema caching. Under ZDR compliance, stubs and annotated files are synthesized dynamically from cached database symbol indexes, ensuring no source code files remain on disk.
 
 ### 1.3 Technical Implementation Challenges
 *   **Memory Saturation during ZIP Ingestion**: Buffering large multi-gigabyte ZIP archives in memory triggers container out-of-memory (OOM) crashes on resource-capped corporate workstations.
@@ -164,10 +164,10 @@ The following matrix organizes the physical tasks required to build, test, and d
 ### Day 3: Front-End Next.js / React Stepper Dashboard & PDF Document Compilation
 *   **Single-Page React JS Interface**: Build Next.js visual layouts incorporating sidebar routing.
 *   **Operational Deployment Stepper View**: Render progressive workflow indicators to display real-time extraction, indexing, and auditing updates.
-*   **Interactive UML Canvas**: Integrate Mermaid.js and PlantUML rendering hooks inside an interactive SVG viewing panel. Write heuristic-based UML consistency checkers.
-*   **Bifurcated Backlog Dashboard**: Build the Kanban, Gantt, and Git side-by-side Unified Diff panels.
-*   **Structured PDF Compiler (`fpdf2` integration)**: Construct the document generation engine using the Python-native `fpdf2` library. This compiles sprint details (UML diagram links, clustered backlog user stories, and code traceability indices) directly into a styled PDF.
-*   **PDF Compiler Automation**: Standardize the formatting layouts and trigger programmatic streams to generate compilable reports instantly, avoiding heavy external Java Runtime Environment (JRE) or Apache FOP toolchains on the host workstation.
+*   **Interactive UML Canvas**: Integrate PlantUML rendering hooks inside an interactive SVG viewing panel, rendering vector SVGs natively in the browser with pan-and-zoom controls. Write heuristic-based UML consistency checkers.
+*   **Bifurcated Backlog Dashboard**: Build the Kanban, Gantt, and dynamic side-by-side Unified Diff viewports.
+*   **Structured PDF Compiler (`fpdf2` integration)**: Construct the document generation engine using the Python-native `fpdf2` library. This compiles sprint details (scaled UML diagram images, clustered backlog user stories, timeline milestones, and code traceability indices) directly into a styled PDF.
+*   **PDF Compiler Automation**: Standardize the formatting layouts and trigger programmatic streams to generate compilable reports instantly, avoiding heavy external Java Runtime Environment (JRE), DocBook XML, or Apache FOP toolchains on the host workstation.
 
 ### Day 4: Integration Testing, Tamper Auditing & Podman Packaging
 *   **Cryptographic Ledger Audit**: Test `backend/ledger_verifier.py` to sequentially compute HMAC-SHA256 backward chains and ensure unauthorized database overrides are instantly detected.

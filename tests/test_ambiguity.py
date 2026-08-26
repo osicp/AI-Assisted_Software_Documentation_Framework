@@ -29,7 +29,7 @@ class TestAmbiguityResolution(unittest.TestCase):
 
         # Insert a fake codebase version tag so that generation doesn't fail on "No codebase version found"
         import sqlite3
-        conn = sqlite3.connect("data/governance.db")
+        conn = sqlite3.connect(settings.DATABASE_PATH)
         cursor = conn.cursor()
         version_id = f"test_version_{uuid.uuid4().hex[:6]}"
         cursor.execute(
