@@ -142,4 +142,15 @@ To address current limitations and expand ScrumMap's enterprise capabilities, th
 
 ---
 
+## Pitch Deck
+[👉 Click here to view the Pitch Deck](https://drive.google.com/file/d/1KWXT9d5_KkboOxfCQLIkJJnO0sF4iP3n/view?usp=sharing)
+
+---
+
+## Presentation Slides
+[👉 Click here to view the Presentation](https://drive.google.com/file/d/16Nn9230hFdaGih6dnTCUSUZNxZqPpp29/view?usp=sharing)
+
+---
+
 ## Demo Video Link
+[👉 Click here to view the Demo Video](https://drive.google.com/file/d/1lWk4agYdot4o95OedLiwwKzbsMF9nomr/view?usp=sharing)

@@ -1,7 +1,7 @@
 # =============================================================================
-# SCRUMMAP SBERT CLUSTERING & ARCITECTURE RECOVERY (sbert_clustering.py)
+# SCRUMMAP SBERT CLUSTERING & ARCHITECTURE RECOVERY (sbert_clustering.py)
 # =============================================================================
-from typing import List, Dict, Any
+from typing import List, Dict, Any, TypedDict
 import spacy
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
@@ -10,6 +10,20 @@ import numpy as np
 # Global cached model instances
 _sbert_model = None
 _spacy_nlp = None
+
+class ClusteredStory(TypedDict):
+    story: str
+    actor: str
+    cluster_id: int
+    architectural_layer: str
+
+# Configured mappings of architectural layer names to their corresponding keyword triggers.
+# Priority is determined by the insertion order of the dictionary.
+ARCHITECTURAL_LAYER_MAPPING: Dict[str, tuple] = {
+    "Presentation [Pr]": ("ui", "screen", "button", "page", "dashboard", "view"),
+    "Application Services [Ap]": ("api", "controller", "endpoint", "route", "service"),
+    "Domain Services [Do]": ("business rule", "logic", "calculate", "validate", "process"),
+}
 
 def get_sbert_model() -> SentenceTransformer:
     global _sbert_model
@@ -49,7 +63,7 @@ def extract_actors_from_stories(user_stories: List[str]) -> List[str]:
         actors.append(actor)
     return actors
 
-def cluster_and_align_backlog(user_stories: List[str], n_clusters: int = 3) -> List[Dict[str, Any]]:
+def cluster_and_align_backlog(user_stories: List[str], n_clusters: int = 3) -> List[ClusteredStory]:
     # Use triple-single quotes for docstring
     '''
     Transforms stories into semantic vectors using SBERT, groups them via K-Means,
@@ -67,25 +81,23 @@ def cluster_and_align_backlog(user_stories: List[str], n_clusters: int = 3) -> L
     cluster_labels = kmeans.fit_predict(embeddings)
     
     actors = extract_actors_from_stories(user_stories)
-    clustered_output = []
+    clustered_output: List[ClusteredStory] = []
     
     for idx, story in enumerate(user_stories):
-        # Deductively determine reference architectural layer
         story_lower = story.lower()
-        if any(w in story_lower for w in ("ui", "screen", "button", "page", "dashboard", "view")):
-            layer = "Presentation [Pr]"
-        elif any(w in story_lower for w in ("api", "controller", "endpoint", "route", "service")):
-            layer = "Application Services [Ap]"
-        elif any(w in story_lower for w in ("business rule", "logic", "calculate", "validate", "process")):
-            layer = "Domain Services [Do]"
-        else:
-            layer = "Technical Services [Te]"
+        
+        # Deductively determine reference architectural layer by keyword lookup
+        layer = "Technical Services [Te]"
+        for target_layer, keywords in ARCHITECTURAL_LAYER_MAPPING.items():
+            if any(keyword in story_lower for keyword in keywords):
+                layer = target_layer
+                break
             
-        clustered_output.append({
-            "story": story,
-            "actor": actors[idx],
-            "cluster_id": int(cluster_labels[idx]),
-            "architectural_layer": layer
-        })
+        clustered_output.append(ClusteredStory(
+            story=story,
+            actor=actors[idx],
+            cluster_id=int(cluster_labels[idx]),
+            architectural_layer=layer
+        ))
         
     return clustered_output

@@ -1472,7 +1472,22 @@ curl -X POST "http://localhost:8000/api/codebase/upload?project_id=test-project&
   -H "X-ScrumMap-Role-Key: rk_dev_demo_secret_only" \
   -F "file=@mock-codebases/mock_project.zip"
 ```
-*Verify that the response returns HTTP 200 with metadata documenting the unpurified and compressed size boundaries.*
+### Test Protocol E: Automated Pytest Test Suite
+To run the comprehensive automated testing suite locally (verifying cryptographic chains, RBAC policies, structural elimination, ZDR compliance, and verifier-optimizer flow validation):
+1. **Activate the Virtual Environment & Install Testing Tools:**
+   ```bash
+   source venv/bin/activate
+   pip install pytest httpx
+   ```
+2. **Execute Pytest:**
+   To execute the entire test suite in verbose mode:
+   ```bash
+   pytest tests/ -v
+   ```
+   Or execute a specific subset (e.g., RBAC permissions isolation):
+   ```bash
+   pytest tests/test_rbac.py -v
+   ```
 
 ---
 
