@@ -148,7 +148,7 @@ To address current limitations and expand ScrumMap's enterprise capabilities, th
 ---
 
 ## Presentation Slides
-[👉 Click here to view the Presentation](https://drive.google.com/file/d/16Nn9230hFdaGih6dnTCUSUZNxZqPpp29/view?usp=sharing)
+[👉 Click here to view the Presentation](https://drive.google.com/file/d/1jgJFjCVyyUGZuKDiDPycEYAedg2ZPOOV/view?usp=sharing)
 
 ---
 
